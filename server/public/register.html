@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>tpodo — Register</title>
+    <style>
+      body { font-family: Arial, Helvetica, sans-serif; padding: 24px; }
+      .card { max-width:480px; margin:24px auto; padding:18px; border:1px solid #ddd; border-radius:8px }
+      label { display:block; margin-top:12px }
+      input { width:100%; padding:8px; margin-top:6px; box-sizing:border-box }
+      button { margin-top:12px; padding:10px 14px }
+      .hint { color:#666 }
+    </style>
+  </head>
+  <body>
+    <div class="card">
+      <h2>Create an account</h2>
+      <p class="hint">Register a new user. After registering you can sign in on the <a href="/login">login page</a>.</p>
+
+      <form id="regForm">
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" required placeholder="you@company.com" />
+
+        <label for="name">Name (optional)</label>
+        <input id="name" name="name" type="text" placeholder="Your name" />
+
+        <label for="password">Password</label>
+        <input id="password" name="password" type="password" required placeholder="Choose a password" />
+
+        <button type="submit">Register</button>
+      </form>
+
+      <div id="result" style="margin-top:12px"></div>
+    </div>
+
+    <script>
+      document.getElementById('regForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const email = document.getElementById('email').value.trim();
+        const name = document.getElementById('name').value.trim();
+        const password = document.getElementById('password').value;
+        const result = document.getElementById('result');
+        result.textContent = 'Registering...';
+        try {
+          const res = await fetch('/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, name, password })
+          });
+          const body = await res.json().catch(()=>({}));
+          if (!res.ok) {
+            result.innerHTML = '<strong style="color:red">Error:</strong> ' + (body.error || res.statusText);
+            return;
+          }
+          result.innerHTML = '<strong style="color:green">Registered</strong> — you can now <a href="/login">login</a>.';
+        } catch (err) {
+          result.innerHTML = '<strong style="color:red">Error:</strong> ' + err.message;
+        }
+      });
+    </script>
+  </body>
+</html>

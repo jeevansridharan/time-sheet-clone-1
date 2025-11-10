@@ -1,0 +1,23 @@
+{
+  "name": "tpodo-timesheet-server",
+  "version": "0.1.0",
+  "description": "Minimal time-sheet server for tpodo intern project (auth + user).",
+  "main": "server/index.js",
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "jest --runInBand",
+    "create-admin": "node scripts/create-admin.js"
+  },
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "express": "^4.18.2",
+    "jsonwebtoken": "^9.0.0",
+    "uuid": "^9.0.0"
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.4"
+  }
+}
