@@ -1,8 +1,9 @@
 import React, { useEffect, useRef, useState } from 'react'
 import { DateTime } from 'luxon'
 import axios from 'axios'
-import { Timeline } from 'vis-timeline/standalone'
+import { Timeline, DataSet } from 'vis-timeline/standalone'
 import 'vis-timeline/styles/vis-timeline-graph2d.css'
+import moment from 'moment-timezone'
 
 export default function TimelineView() {
   const containerRef = useRef(null)
@@ -13,7 +14,7 @@ export default function TimelineView() {
     const container = containerRef.current
     if (!container) return
     // items dataset
-    const data = new Timeline.DataSet([])
+  const data = new DataSet([])
     timelineRef.current = new Timeline(container, data, {
       editable: {
         add: true,
@@ -22,7 +23,10 @@ export default function TimelineView() {
       },
       stack: false,
       showCurrentTime: true,
-      timeAxis: { scale: 'hour', step: 1 }
+      timeAxis: { scale: 'hour', step: 1 },
+      locale: 'en-gb', // 24-hour clock labels
+      // Use moment-timezone so the axis and tooltips render in IST
+      moment: (date) => moment(date).tz('Asia/Kolkata')
     })
 
     timelineRef.current.on('add', (item, callback) => {
@@ -70,8 +74,15 @@ export default function TimelineView() {
   }
 
   async function loadEntries() {
-    const res = await axios.get('/api/entries', { headers: authHeaders() })
-    return res.data.entries || []
+    try {
+      const res = await axios.get('/api/entries', { headers: authHeaders() })
+      return res.data.entries || []
+    } catch (err) {
+      // If the API is not available (server not running / unauthenticated),
+      // return an empty list so the timeline still renders.
+      console.warn('Failed to load entries:', err && err.message ? err.message : err)
+      return []
+    }
   }
 
   async function createEntry(start, end) {
