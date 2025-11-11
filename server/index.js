@@ -7,6 +7,8 @@ const db = require('./db');
 
 const app = express();
 app.use(express.json());
+const cors = require('cors');
+app.use(cors());
 
 // Serve static frontend files from server/public
 app.use(express.static(path.join(__dirname, 'public')));
@@ -131,6 +133,79 @@ app.get('/me', authMiddleware, (req, res) => {
 });
 
 app.get('/', (req, res) => res.send('tpodo timesheet server — auth endpoints: POST /register, POST /login, GET /me'));
+
+// -- Time entries API (supports JSON-file fallback)
+// GET /api/entries?from=ISO&to=ISO
+app.get('/api/entries', authMiddleware, (req, res) => {
+  try {
+    const { from, to } = req.query;
+    const all = db.getEntries();
+    let entries = all.filter(e => e.userId === req.user.id);
+    if (from) entries = entries.filter(e => new Date(e.end || e.start) >= new Date(from));
+    if (to) entries = entries.filter(e => new Date(e.start) <= new Date(to));
+    return res.json({ entries });
+  } catch (err) {
+    return res.status(500).json({ error: 'server error' });
+  }
+});
+
+// Create entry
+app.post('/api/entries', authMiddleware, (req, res) => {
+  try {
+    const { title, project, start, end, description, billable } = req.body || {};
+    if (!start) return res.status(400).json({ error: 'start is required' });
+    const entry = {
+      id: uuidv4(),
+      userId: req.user.id,
+      title: title || 'Untitled',
+      project: project || null,
+      start: new Date(start).toISOString(),
+      end: end ? new Date(end).toISOString() : null,
+      description: description || null,
+      billable: !!billable,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    db.addEntry(entry);
+    return res.status(201).json({ entry });
+  } catch (err) {
+    return res.status(500).json({ error: 'server error' });
+  }
+});
+
+// Update entry
+app.patch('/api/entries/:id', authMiddleware, (req, res) => {
+  try {
+    const id = req.params.id;
+    const existing = db.findEntryById(id);
+    if (!existing) return res.status(404).json({ error: 'not found' });
+    if (existing.userId !== req.user.id) return res.status(403).json({ error: 'forbidden' });
+    const patch = {};
+    ['title','project','start','end','description','billable'].forEach(k => {
+      if (k in req.body) patch[k] = req.body[k];
+    });
+    if (patch.start) patch.start = new Date(patch.start).toISOString();
+    if (patch.end) patch.end = patch.end ? new Date(patch.end).toISOString() : null;
+    const updated = db.updateEntry(id, patch);
+    return res.json({ entry: updated });
+  } catch (err) {
+    return res.status(500).json({ error: 'server error' });
+  }
+});
+
+// Delete entry
+app.delete('/api/entries/:id', authMiddleware, (req, res) => {
+  try {
+    const id = req.params.id;
+    const existing = db.findEntryById(id);
+    if (!existing) return res.status(404).json({ error: 'not found' });
+    if (existing.userId !== req.user.id) return res.status(403).json({ error: 'forbidden' });
+    const ok = db.deleteEntry(id);
+    return res.json({ ok });
+  } catch (err) {
+    return res.status(500).json({ error: 'server error' });
+  }
+});
 
 // Only start the server when this file is run directly. This allows tests to import the app.
 if (require.main === module) {
