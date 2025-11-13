@@ -207,6 +207,132 @@ app.delete('/api/entries/:id', authMiddleware, (req, res) => {
   }
 });
 
+// ---- Projects API ----
+// GET /api/projects
+app.get('/api/projects', authMiddleware, (req, res) => {
+  try {
+    const all = db.getProjects();
+    const projects = all.filter(p => p.userId === req.user.id);
+    res.json({ projects });
+  } catch (err) {
+    res.status(500).json({ error: 'server error' });
+  }
+});
+
+// POST /api/projects
+app.post('/api/projects', authMiddleware, (req, res) => {
+  try {
+    const { name, description } = req.body || {};
+    if (!name) return res.status(400).json({ error: 'name is required' });
+    const project = {
+      id: uuidv4(),
+      userId: req.user.id,
+      name,
+      description: description || null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    db.addProject(project);
+    res.status(201).json({ project });
+  } catch (err) {
+    res.status(500).json({ error: 'server error' });
+  }
+});
+
+// PATCH /api/projects/:id
+app.patch('/api/projects/:id', authMiddleware, (req, res) => {
+  try {
+    const id = req.params.id;
+    const existing = db.findProjectById(id);
+    if (!existing) return res.status(404).json({ error: 'not found' });
+    if (existing.userId !== req.user.id) return res.status(403).json({ error: 'forbidden' });
+    const patch = {};
+    ['name', 'description'].forEach(k => { if (k in req.body) patch[k] = req.body[k]; });
+    const updated = db.updateProject(id, patch);
+    res.json({ project: updated });
+  } catch (err) {
+    res.status(500).json({ error: 'server error' });
+  }
+});
+
+// DELETE /api/projects/:id
+app.delete('/api/projects/:id', authMiddleware, (req, res) => {
+  try {
+    const id = req.params.id;
+    const existing = db.findProjectById(id);
+    if (!existing) return res.status(404).json({ error: 'not found' });
+    if (existing.userId !== req.user.id) return res.status(403).json({ error: 'forbidden' });
+    const ok = db.deleteProject(id);
+    res.json({ ok });
+  } catch (err) {
+    res.status(500).json({ error: 'server error' });
+  }
+});
+
+// ---- Tasks API ----
+// GET /api/tasks?projectId=
+app.get('/api/tasks', authMiddleware, (req, res) => {
+  try {
+    const all = db.getTasks();
+    let tasks = all.filter(t => t.userId === req.user.id);
+    if (req.query.projectId) tasks = tasks.filter(t => t.projectId === req.query.projectId);
+    res.json({ tasks });
+  } catch (err) {
+    res.status(500).json({ error: 'server error' });
+  }
+});
+
+// POST /api/tasks
+app.post('/api/tasks', authMiddleware, (req, res) => {
+  try {
+    const { title, description, projectId, status } = req.body || {};
+    if (!title) return res.status(400).json({ error: 'title is required' });
+    const task = {
+      id: uuidv4(),
+      userId: req.user.id,
+      title,
+      description: description || null,
+      projectId: projectId || null,
+      status: status || 'open',
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    db.addTask(task);
+    res.status(201).json({ task });
+  } catch (err) {
+    res.status(500).json({ error: 'server error' });
+  }
+});
+
+// PATCH /api/tasks/:id
+app.patch('/api/tasks/:id', authMiddleware, (req, res) => {
+  try {
+    const id = req.params.id;
+    const existing = db.findTaskById(id);
+    if (!existing) return res.status(404).json({ error: 'not found' });
+    if (existing.userId !== req.user.id) return res.status(403).json({ error: 'forbidden' });
+    const patch = {};
+    ['title','description','projectId','status'].forEach(k => { if (k in req.body) patch[k] = req.body[k]; });
+    const updated = db.updateTask(id, patch);
+    res.json({ task: updated });
+  } catch (err) {
+    res.status(500).json({ error: 'server error' });
+  }
+});
+
+// DELETE /api/tasks/:id
+app.delete('/api/tasks/:id', authMiddleware, (req, res) => {
+  try {
+    const id = req.params.id;
+    const existing = db.findTaskById(id);
+    if (!existing) return res.status(404).json({ error: 'not found' });
+    if (existing.userId !== req.user.id) return res.status(403).json({ error: 'forbidden' });
+    const ok = db.deleteTask(id);
+    res.json({ ok });
+  } catch (err) {
+    res.status(500).json({ error: 'server error' });
+  }
+});
 // Only start the server when this file is run directly. This allows tests to import the app.
 if (require.main === module) {
   app.listen(PORT, () => {

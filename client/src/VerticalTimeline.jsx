@@ -18,7 +18,7 @@ function useAuthHeaders() {
   }, [])
 }
 
-export default function VerticalTimeline() {
+export default function VerticalTimeline({ refreshKey }) {
   const headers = useAuthHeaders()
   const [items, setItems] = useState([])
   const [now, setNow] = useState(DateTime.now().setZone(ZONE))
@@ -45,7 +45,7 @@ export default function VerticalTimeline() {
       }
     })()
     return () => { mounted = false }
-  }, [headers, selectedDate])
+  }, [headers, selectedDate, refreshKey])
 
   // tick every minute for current time line
   useEffect(() => {

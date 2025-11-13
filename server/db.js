@@ -3,7 +3,7 @@ const path = require('path');
 
 const DB_PATH = path.join(__dirname, 'db.json');
 
-let _db = { users: [], entries: [] };
+let _db = { users: [], entries: [], projects: [], tasks: [] };
 
 function load() {
   try {
@@ -11,12 +11,15 @@ function load() {
       const raw = fs.readFileSync(DB_PATH, 'utf8');
       _db = JSON.parse(raw || '{}');
       if (!Array.isArray(_db.users)) _db.users = [];
+      if (!Array.isArray(_db.entries)) _db.entries = [];
+      if (!Array.isArray(_db.projects)) _db.projects = [];
+      if (!Array.isArray(_db.tasks)) _db.tasks = [];
     } else {
       save();
     }
   } catch (err) {
     console.error('Failed to load DB:', err);
-    _db = { users: [] };
+    _db = { users: [], entries: [], projects: [], tasks: [] };
     save();
   }
 }
@@ -72,6 +75,60 @@ function addUser(user) {
   save();
 }
 
+// Projects
+function getProjects() {
+  return _db.projects || [];
+}
+function findProjectById(id) {
+  return getProjects().find(p => p.id === id);
+}
+function addProject(project) {
+  _db.projects = _db.projects || [];
+  _db.projects.push(project);
+  save();
+}
+function updateProject(id, patch) {
+  const idx = getProjects().findIndex(p => p.id === id);
+  if (idx === -1) return null;
+  _db.projects[idx] = { ..._db.projects[idx], ...patch, updatedAt: new Date().toISOString() };
+  save();
+  return _db.projects[idx];
+}
+function deleteProject(id) {
+  const before = getProjects().length;
+  _db.projects = getProjects().filter(p => p.id !== id);
+  const after = _db.projects.length;
+  if (after !== before) save();
+  return before !== after;
+}
+
+// Tasks
+function getTasks() {
+  return _db.tasks || [];
+}
+function findTaskById(id) {
+  return getTasks().find(t => t.id === id);
+}
+function addTask(task) {
+  _db.tasks = _db.tasks || [];
+  _db.tasks.push(task);
+  save();
+}
+function updateTask(id, patch) {
+  const idx = getTasks().findIndex(t => t.id === id);
+  if (idx === -1) return null;
+  _db.tasks[idx] = { ..._db.tasks[idx], ...patch, updatedAt: new Date().toISOString() };
+  save();
+  return _db.tasks[idx];
+}
+function deleteTask(id) {
+  const before = getTasks().length;
+  _db.tasks = getTasks().filter(t => t.id !== id);
+  const after = _db.tasks.length;
+  if (after !== before) save();
+  return before !== after;
+}
+
 load();
 
 module.exports = {
@@ -84,6 +141,18 @@ module.exports = {
   addEntry,
   updateEntry,
   deleteEntry,
+  // projects
+  getProjects,
+  findProjectById,
+  addProject,
+  updateProject,
+  deleteProject,
+  // tasks
+  getTasks,
+  findTaskById,
+  addTask,
+  updateTask,
+  deleteTask,
   save,
   DB_PATH
 };
