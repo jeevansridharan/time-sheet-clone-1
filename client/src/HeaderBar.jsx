@@ -12,6 +12,7 @@ export default function HeaderBar({ user, onLogout, rangeLabel, onPrev, onNext, 
         </div>
         <div className="hb-views">
           <button className={view==='calendar'?'active':''} onClick={()=>setView('calendar')}>Week</button>
+          <button className={view==='month'?'active':''} onClick={()=>setView('month')}>Month</button>
           <button className={view==='timeline'?'active':''} onClick={()=>setView('timeline')}>Day</button>
         </div>
       </div>

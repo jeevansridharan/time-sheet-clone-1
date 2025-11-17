@@ -41,7 +41,7 @@ export default function ProjectsPage() {
   return (
     <div>
       <h3 style={{ margin:'8px 0' }}>Projects</h3>
-      <form onSubmit={addProject} style={{ display:'flex', gap:8, marginBottom:12 }}>
+  <form onSubmit={addProject} style={{ display:'flex', gap:8, marginBottom:12, flexWrap:'wrap' }}>
         <input placeholder="Project name" value={name} onChange={e=>setName(e.target.value)} required style={{ padding:8, border:'1px solid #ddd', borderRadius:6 }} />
         <input placeholder="Description (optional)" value={description} onChange={e=>setDescription(e.target.value)} style={{ flex:1, padding:8, border:'1px solid #ddd', borderRadius:6 }} />
         <button type="submit" disabled={saving} style={{ padding:'8px 12px' }}>{saving ? 'Adding…' : 'Add Project'}</button>
@@ -62,8 +62,8 @@ export default function ProjectsPage() {
                 <td style={{ padding:8, borderBottom:'1px solid #f1f1f1' }}>{p.description || '—'}</td>
               </tr>
             ))}
-            {!projects.length && (
-              <tr><td colSpan={2} style={{ padding:12 }}>No projects yet. Add one above.</td></tr>
+              {!projects.length && (
+                <tr><td colSpan={2} style={{ padding:12 }}>No projects yet. Add one above.</td></tr>
             )}
           </tbody>
         </table>

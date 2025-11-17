@@ -6,6 +6,7 @@
   "scripts": {
   "start": "node server/index.js",
   "dev": "nodemon server/index.js",
+  "start:3001": "set PORT=3001&& node server/index.js",
   "test": "jest --runInBand",
   "create-admin": "node scripts/create-admin.js",
   "prisma:generate": "prisma generate",

@@ -24,6 +24,9 @@ export default function VerticalTimeline({ refreshKey }) {
   const [now, setNow] = useState(DateTime.now().setZone(ZONE))
   const [selectedDate, setSelectedDate] = useState(DateTime.now().setZone(ZONE).startOf('day'))
   const [error, setError] = useState(null)
+  const [teams, setTeams] = useState([])
+  const [teamId, setTeamId] = useState(() => localStorage.getItem('ts_selectedTeam') || '')
+  const selectedTeam = useMemo(() => teams.find(t => t.id === teamId) || null, [teams, teamId])
 
   // Load entries for the selected day (server-side filtering by from/to in UTC)
   useEffect(() => {
@@ -32,10 +35,15 @@ export default function VerticalTimeline({ refreshKey }) {
       try {
         const fromUtc = selectedDate.toUTC().toISO()
         const toUtc = selectedDate.endOf('day').toUTC().toISO()
-        const res = await axios.get('/api/entries', { headers, params: { from: fromUtc, to: toUtc } })
-        const entries = (res.data && res.data.entries) || []
+        const [er, tr] = await Promise.all([
+          axios.get('/api/entries', { headers, params: { from: fromUtc, to: toUtc } }),
+          axios.get('/api/teams', { headers })
+        ])
+        const entries = (er.data && er.data.entries) || []
+        const tms = (tr.data && tr.data.teams) || []
         if (!mounted) return
-        setItems(entries)
+        setTeams(tms)
+        setItems(teamId ? entries.filter(e => e.teamId === teamId) : entries)
         setError(null)
       } catch (e) {
         // show empty timeline if unauth or server offline
@@ -45,7 +53,7 @@ export default function VerticalTimeline({ refreshKey }) {
       }
     })()
     return () => { mounted = false }
-  }, [headers, selectedDate, refreshKey])
+  }, [headers, selectedDate, refreshKey, teamId])
 
   // tick every minute for current time line
   useEffect(() => {
@@ -84,6 +92,12 @@ export default function VerticalTimeline({ refreshKey }) {
     if (iso) setSelectedDate(DateTime.fromISO(iso, { zone: ZONE }).startOf('day'))
   }
 
+  function onTeamChange(e) {
+    const v = e.target.value
+    setTeamId(v)
+    if (v) localStorage.setItem('ts_selectedTeam', v); else localStorage.removeItem('ts_selectedTeam')
+  }
+
   return (
     <div className="vtl-root">
       <div className="vtl-header">
@@ -92,6 +106,10 @@ export default function VerticalTimeline({ refreshKey }) {
           <span style={{ marginLeft: 8 }}>IST • 24-hour</span>
         </div>
         <div className="vtl-controls">
+          <select value={teamId} onChange={onTeamChange} style={{ marginRight: 6 }}>
+            <option value="">All teams</option>
+            {teams.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
           <button onClick={() => changeDay(-1)} aria-label="Previous day">◀</button>
           <button onClick={() => setSelectedDate(DateTime.now().setZone(ZONE).startOf('day'))}>Today</button>
           <button onClick={() => changeDay(1)} aria-label="Next day">▶</button>
@@ -102,6 +120,15 @@ export default function VerticalTimeline({ refreshKey }) {
             style={{ marginLeft: 8 }}
           />
         </div>
+        {selectedTeam && (
+          <div style={{ marginTop: 6, display:'flex', flexWrap:'wrap', gap:6, alignItems:'center' }}>
+            <span style={{ fontWeight:600 }}>{selectedTeam.name}</span>
+            <span style={{ color:'#777' }}>• {(Array.isArray(selectedTeam.members)? selectedTeam.members.length : 0)} member{(Array.isArray(selectedTeam.members)? selectedTeam.members.length : 0) === 1 ? '' : 's'}</span>
+            {(Array.isArray(selectedTeam.members) ? selectedTeam.members : []).map(m => (
+              <span key={m} style={{ background:'#f5f5f5', border:'1px solid #e5e5e5', borderRadius:12, padding:'2px 8px' }}>{m}</span>
+            ))}
+          </div>
+        )}
         {error && <span className="vtl-error">{error} — showing empty timeline</span>}
       </div>
       <div className="vtl-scroll">

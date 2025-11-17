@@ -2,7 +2,9 @@ import React from 'react'
 
 const LINKS = [
   { key: 'dashboard', label: 'Dashboard' },
+  { key: 'profile', label: 'Profile' },
   { key: 'times', label: 'Times' },
+  { key: 'teams', label: 'Teams' },
   { key: 'projects', label: 'Projects' },
   { key: 'tasks', label: 'Tasks' },
   { key: 'reports', label: 'Reports' }

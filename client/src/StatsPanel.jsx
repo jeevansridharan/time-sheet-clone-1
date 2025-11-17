@@ -8,11 +8,6 @@ export default function StatsPanel() {
         <div className="value">0:00</div>
         <div className="label">Duration</div>
       </div>
-      <div className="stat-card purple">
-        <div className="icon">💰</div>
-        <div className="value">₹ 0.00</div>
-        <div className="label">Total</div>
-      </div>
     </div>
   )
 }

@@ -2,20 +2,26 @@ import React, { useEffect, useState } from 'react'
 import { DateTime } from 'luxon'
 import VerticalTimeline from './VerticalTimeline'
 import WeekCalendar from './WeekCalendar'
+import MonthCalendar from './MonthCalendar'
 import StatsPanel from './StatsPanel'
 import Sidebar from './Sidebar'
 import HeaderBar from './HeaderBar'
+import InsightsPanel from './InsightsPanel'
 import NewEntryModal from './NewEntryModal'
 import TimesList from './TimesList'
 import ProjectsPage from './ProjectsPage'
 import TasksPage from './TasksPage'
+import ReportsPage from './ReportsPage'
+import TeamsPage from './TeamsPage'
+import ProfilePage from './ProfilePage'
 
 // Dashboard replicates layout similar to reference screenshot: sidebar, header, content tabs.
 
 export default function Dashboard({ user, onLogout }) {
-  const [view, setView] = useState('calendar') // 'calendar' | 'timeline'
+  const [view, setView] = useState('calendar') // 'calendar' | 'month' | 'timeline'
   const [weekStart, setWeekStart] = useState(DateTime.now().startOf('week')) // Monday by default (luxon startOf('week'))
-  const [route, setRoute] = useState('dashboard') // dashboard | times | tasks | projects | expenses | reports | configuration
+  const [monthStart, setMonthStart] = useState(DateTime.now().startOf('month'))
+  const [route, setRoute] = useState('dashboard') // dashboard | profile | times | tasks | projects | reports | teams
   const [showNew, setShowNew] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
 
@@ -35,12 +41,19 @@ export default function Dashboard({ user, onLogout }) {
     setWeekStart(ws => ws.plus({ weeks: delta }).startOf('week'))
   }
 
+  function goMonth(delta) {
+    setMonthStart(ms => ms.plus({ months: delta }).startOf('month'))
+  }
+
   function toToday() {
-    setWeekStart(DateTime.now().startOf('week'))
+    if (view === 'calendar') setWeekStart(DateTime.now().startOf('week'))
+    else if (view === 'month') setMonthStart(DateTime.now().startOf('month'))
   }
 
   const weekEnd = weekStart.plus({ days: 6 })
-  const rangeLabel = `${weekStart.toFormat('LLL dd')} – ${weekEnd.toFormat('LLL dd, yyyy')}`
+  const rangeLabel = view === 'month'
+    ? monthStart.toFormat('LLLL yyyy')
+    : `${weekStart.toFormat('LLL dd')} – ${weekEnd.toFormat('LLL dd, yyyy')}`
 
   function onCreatedEntry() {
     setShowNew(false)
@@ -52,28 +65,22 @@ export default function Dashboard({ user, onLogout }) {
       return (
         <>
           <div className="tab-switch">
-            <button className={view==='calendar'?'active':''} onClick={()=>setView('calendar')}>Calendar</button>
-            <button className={view==='timeline'?'active':''} onClick={()=>setView('timeline')}>Timeline</button>
+            <button className={view==='calendar'?'active':''} onClick={()=>setView('calendar')}>Week</button>
+            <button className={view==='month'?'active':''} onClick={()=>setView('month')}>Month</button>
+            <button className={view==='timeline'?'active':''} onClick={()=>setView('timeline')}>Day</button>
           </div>
-          {view === 'calendar' ? (
-            <WeekCalendar weekStart={weekStart} />
-          ) : (
-            <VerticalTimeline refreshKey={refreshKey} />
-          )}
+          {view === 'calendar' && <WeekCalendar weekStart={weekStart} />}
+          {view === 'month' && <MonthCalendar monthStart={monthStart} />}
+          {view === 'timeline' && <VerticalTimeline refreshKey={refreshKey} />}
         </>
       )
     }
     if (route === 'times') return <TimesList refreshKey={refreshKey} />
-    if (route === 'projects') return <ProjectsPage />
+  if (route === 'projects') return <ProjectsPage />
+  if (route === 'teams') return <TeamsPage />
     if (route === 'tasks') return <TasksPage />
-    if (route === 'reports') {
-      return (
-        <div className="placeholder">
-          <h3 style={{ marginTop: 8 }}>Reports</h3>
-          <p style={{ color: '#666' }}>Reports are not implemented yet.</p>
-        </div>
-      )
-    }
+    if (route === 'reports') return <ReportsPage />
+    if (route === 'profile') return <ProfilePage />
     return null
   }
 
@@ -85,8 +92,8 @@ export default function Dashboard({ user, onLogout }) {
           user={user}
           onLogout={onLogout}
           rangeLabel={rangeLabel}
-          onPrev={() => goWeek(-1)}
-          onNext={() => goWeek(1)}
+          onPrev={() => (view==='month'? goMonth(-1) : goWeek(-1))}
+          onNext={() => (view==='month'? goMonth(1) : goWeek(1))}
           onToday={toToday}
           view={view}
           setView={setView}
@@ -96,7 +103,10 @@ export default function Dashboard({ user, onLogout }) {
           <div className="dash-primary">
             {renderMain()}
           </div>
-          <StatsPanel />
+          <div className="side-column">
+            <StatsPanel />
+            <InsightsPanel />
+          </div>
         </div>
       </div>
       {showNew && (

@@ -73,18 +73,25 @@ if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD && db.getUsers().lengt
 
 // Register
 app.post('/register', (req, res) => {
-  const { email, password, name } = req.body || {};
+  const { email, password, name, age, gender, phone } = req.body || {};
   if (!email || !password) {
     return res.status(400).json({ error: 'email and password required' });
   }
   const existing = db.findUserByEmail(email);
   if (existing) return res.status(409).json({ error: 'user exists' });
+  if (phone) {
+    const existingPhone = db.findUserByPhone(String(phone));
+    if (existingPhone) return res.status(409).json({ error: 'phone already in use' });
+  }
 
   const hashed = bcrypt.hashSync(password, 10);
   const user = {
     id: uuidv4(),
     email,
     name: name || null,
+    age: typeof age === 'number' ? age : (age ? Number(age) : null),
+    phone: phone ? String(phone) : null,
+    gender: gender || null,
     password: hashed,
     createdAt: new Date().toISOString()
   };
@@ -95,10 +102,15 @@ app.post('/register', (req, res) => {
 
 // Login
 app.post('/login', (req, res) => {
-  const { email, password } = req.body || {};
-  if (!email || !password) return res.status(400).json({ error: 'email and password required' });
+  const { email, password, phone } = req.body || {};
+  const identifier = email || phone;
+  if (!identifier || !password) return res.status(400).json({ error: 'identifier and password required' });
 
-  const user = db.findUserByEmail(email);
+  let user = null;
+  // Try by email first
+  user = db.findUserByEmail(identifier);
+  // If not found by email, try by phone
+  if (!user) user = db.findUserByPhone(identifier);
   if (!user) return res.status(401).json({ error: 'invalid credentials' });
 
   const ok = bcrypt.compareSync(password, user.password);
@@ -152,7 +164,7 @@ app.get('/api/entries', authMiddleware, (req, res) => {
 // Create entry
 app.post('/api/entries', authMiddleware, (req, res) => {
   try {
-    const { title, project, start, end, description, billable } = req.body || {};
+    const { title, project, start, end, description, billable, taskId, teamId } = req.body || {};
     if (!start) return res.status(400).json({ error: 'start is required' });
     const entry = {
       id: uuidv4(),
@@ -162,6 +174,8 @@ app.post('/api/entries', authMiddleware, (req, res) => {
       start: new Date(start).toISOString(),
       end: end ? new Date(end).toISOString() : null,
       description: description || null,
+      taskId: taskId || null,
+      teamId: teamId || null,
       billable: !!billable,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -181,7 +195,7 @@ app.patch('/api/entries/:id', authMiddleware, (req, res) => {
     if (!existing) return res.status(404).json({ error: 'not found' });
     if (existing.userId !== req.user.id) return res.status(403).json({ error: 'forbidden' });
     const patch = {};
-    ['title','project','start','end','description','billable'].forEach(k => {
+    ['title','project','start','end','description','billable','taskId','teamId'].forEach(k => {
       if (k in req.body) patch[k] = req.body[k];
     });
     if (patch.start) patch.start = new Date(patch.start).toISOString();
@@ -222,13 +236,14 @@ app.get('/api/projects', authMiddleware, (req, res) => {
 // POST /api/projects
 app.post('/api/projects', authMiddleware, (req, res) => {
   try {
-    const { name, description } = req.body || {};
+    const { name, description, hourlyRate } = req.body || {};
     if (!name) return res.status(400).json({ error: 'name is required' });
     const project = {
       id: uuidv4(),
       userId: req.user.id,
       name,
       description: description || null,
+      hourlyRate: typeof hourlyRate === 'number' ? hourlyRate : (hourlyRate ? Number(hourlyRate) : null),
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -247,7 +262,8 @@ app.patch('/api/projects/:id', authMiddleware, (req, res) => {
     if (!existing) return res.status(404).json({ error: 'not found' });
     if (existing.userId !== req.user.id) return res.status(403).json({ error: 'forbidden' });
     const patch = {};
-    ['name', 'description'].forEach(k => { if (k in req.body) patch[k] = req.body[k]; });
+    ['name', 'description', 'hourlyRate'].forEach(k => { if (k in req.body) patch[k] = req.body[k]; });
+    if ('hourlyRate' in patch && patch.hourlyRate != null) patch.hourlyRate = Number(patch.hourlyRate);
     const updated = db.updateProject(id, patch);
     res.json({ project: updated });
   } catch (err) {
@@ -285,15 +301,24 @@ app.get('/api/tasks', authMiddleware, (req, res) => {
 // POST /api/tasks
 app.post('/api/tasks', authMiddleware, (req, res) => {
   try {
-    const { title, description, projectId, status } = req.body || {};
+    const { title, description, projectId, status, teamId, todos, assignedTo } = req.body || {};
     if (!title) return res.status(400).json({ error: 'title is required' });
+    const normTodos = Array.isArray(todos)
+      ? todos.map(t => {
+          if (t && typeof t === 'object') return { id: t.id || uuidv4(), text: String(t.text || ''), done: !!t.done };
+          return { id: uuidv4(), text: String(t || ''), done: false };
+        }).filter(t => t.text)
+      : [];
     const task = {
       id: uuidv4(),
       userId: req.user.id,
       title,
       description: description || null,
       projectId: projectId || null,
+      teamId: teamId || null,
       status: status || 'open',
+      assignedTo: assignedTo || null,
+      todos: normTodos,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -312,7 +337,16 @@ app.patch('/api/tasks/:id', authMiddleware, (req, res) => {
     if (!existing) return res.status(404).json({ error: 'not found' });
     if (existing.userId !== req.user.id) return res.status(403).json({ error: 'forbidden' });
     const patch = {};
-    ['title','description','projectId','status'].forEach(k => { if (k in req.body) patch[k] = req.body[k]; });
+  ['title','description','projectId','status','teamId','assignedTo'].forEach(k => { if (k in req.body) patch[k] = req.body[k]; });
+    if ('todos' in req.body) {
+      const todos = req.body.todos;
+      patch.todos = Array.isArray(todos)
+        ? todos.map(t => {
+            if (t && typeof t === 'object') return { id: t.id || uuidv4(), text: String(t.text || ''), done: !!t.done };
+            return { id: uuidv4(), text: String(t || ''), done: false };
+          }).filter(t => t.text)
+        : [];
+    }
     const updated = db.updateTask(id, patch);
     res.json({ task: updated });
   } catch (err) {
@@ -333,6 +367,55 @@ app.delete('/api/tasks/:id', authMiddleware, (req, res) => {
     res.status(500).json({ error: 'server error' });
   }
 });
+
+// ---- Teams API ----
+// GET /api/teams
+app.get('/api/teams', authMiddleware, (req, res) => {
+  try {
+    const teams = db.getTeams().filter(t => t.userId === req.user.id)
+    res.json({ teams })
+  } catch (err) { res.status(500).json({ error: 'server error' }) }
+})
+
+// POST /api/teams
+app.post('/api/teams', authMiddleware, (req, res) => {
+  try {
+    const { name, deadline, members } = req.body || {}
+    if (!name) return res.status(400).json({ error: 'name is required' })
+    const mem = Array.isArray(members) ? members.map(String) : []
+    const team = { id: uuidv4(), userId: req.user.id, name, members: mem, deadline: deadline ? new Date(deadline).toISOString() : null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+    db.addTeam(team)
+    res.status(201).json({ team })
+  } catch (err) { res.status(500).json({ error: 'server error' }) }
+})
+
+// PATCH /api/teams/:id
+app.patch('/api/teams/:id', authMiddleware, (req, res) => {
+  try {
+    const id = req.params.id
+    const existing = db.findTeamById(id)
+    if (!existing) return res.status(404).json({ error: 'not found' })
+    if (existing.userId !== req.user.id) return res.status(403).json({ error: 'forbidden' })
+    const patch = {}
+    if ('name' in req.body) patch.name = req.body.name
+    if ('deadline' in req.body) patch.deadline = req.body.deadline ? new Date(req.body.deadline).toISOString() : null
+    if ('members' in req.body) patch.members = Array.isArray(req.body.members) ? req.body.members.map(String) : []
+    const updated = db.updateTeam(id, patch)
+    res.json({ team: updated })
+  } catch (err) { res.status(500).json({ error: 'server error' }) }
+})
+
+// DELETE /api/teams/:id
+app.delete('/api/teams/:id', authMiddleware, (req, res) => {
+  try {
+    const id = req.params.id
+    const existing = db.findTeamById(id)
+    if (!existing) return res.status(404).json({ error: 'not found' })
+    if (existing.userId !== req.user.id) return res.status(403).json({ error: 'forbidden' })
+    const ok = db.deleteTeam(id)
+    res.json({ ok })
+  } catch (err) { res.status(500).json({ error: 'server error' }) }
+})
 // Only start the server when this file is run directly. This allows tests to import the app.
 if (require.main === module) {
   app.listen(PORT, () => {

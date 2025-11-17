@@ -3,7 +3,7 @@ const path = require('path');
 
 const DB_PATH = path.join(__dirname, 'db.json');
 
-let _db = { users: [], entries: [], projects: [], tasks: [] };
+let _db = { users: [], entries: [], projects: [], tasks: [], teams: [] };
 
 function load() {
   try {
@@ -13,13 +13,14 @@ function load() {
       if (!Array.isArray(_db.users)) _db.users = [];
       if (!Array.isArray(_db.entries)) _db.entries = [];
       if (!Array.isArray(_db.projects)) _db.projects = [];
-      if (!Array.isArray(_db.tasks)) _db.tasks = [];
+  if (!Array.isArray(_db.tasks)) _db.tasks = [];
+  if (!Array.isArray(_db.teams)) _db.teams = [];
     } else {
       save();
     }
   } catch (err) {
     console.error('Failed to load DB:', err);
-    _db = { users: [], entries: [], projects: [], tasks: [] };
+    _db = { users: [], entries: [], projects: [], tasks: [], teams: [] };
     save();
   }
 }
@@ -64,6 +65,11 @@ function deleteEntry(id) {
 
 function findUserByEmail(email) {
   return _db.users.find(u => u.email === email);
+}
+
+function findUserByPhone(phone) {
+  if (!phone) return undefined;
+  return _db.users.find(u => u.phone === phone);
 }
 
 function findUserById(id) {
@@ -129,11 +135,31 @@ function deleteTask(id) {
   return before !== after;
 }
 
+// Teams
+function getTeams() { return _db.teams || [] }
+function findTeamById(id) { return getTeams().find(t => t.id === id) }
+function addTeam(team) { _db.teams = _db.teams || []; _db.teams.push(team); save() }
+function updateTeam(id, patch) {
+  const idx = getTeams().findIndex(t => t.id === id)
+  if (idx === -1) return null
+  _db.teams[idx] = { ..._db.teams[idx], ...patch, updatedAt: new Date().toISOString() }
+  save();
+  return _db.teams[idx]
+}
+function deleteTeam(id) {
+  const before = getTeams().length
+  _db.teams = getTeams().filter(t => t.id !== id)
+  const after = _db.teams.length
+  if (after !== before) save()
+  return before !== after
+}
+
 load();
 
 module.exports = {
   getUsers,
   findUserByEmail,
+  findUserByPhone,
   findUserById,
   addUser,
   getEntries,
@@ -153,6 +179,12 @@ module.exports = {
   addTask,
   updateTask,
   deleteTask,
+  // teams
+  getTeams,
+  findTeamById,
+  addTeam,
+  updateTeam,
+  deleteTeam,
   save,
   DB_PATH
 };

@@ -34,8 +34,8 @@ export default function Login({ onLogin }) {
     <div style={{ maxWidth: 420, marginTop: 16 }}>
       <form onSubmit={submit}>
         <div style={{ marginBottom: 8 }}>
-          <label style={{ display: 'block', fontSize: 13, marginBottom: 4 }}>Email</label>
-          <input value={email} onChange={e => setEmail(e.target.value)} type="email" required style={{ width: '100%', padding: 8 }} />
+          <label style={{ display: 'block', fontSize: 13, marginBottom: 4 }}>Email or phone</label>
+          <input value={email} onChange={e => setEmail(e.target.value)} type="text" placeholder="you@example.com or 9876543210" required style={{ width: '100%', padding: 8 }} />
         </div>
         <div style={{ marginBottom: 8 }}>
           <label style={{ display: 'block', fontSize: 13, marginBottom: 4 }}>Password</label>
@@ -43,7 +43,7 @@ export default function Login({ onLogin }) {
         </div>
         <div style={{ marginTop: 12 }}>
           <button type="submit" disabled={loading} style={{ padding: '8px 12px' }}>{loading ? 'Signing in…' : 'Sign in'}</button>
-          <a href="/register" style={{ marginLeft: 12 }}>Create an account</a>
+          <a href="#/register" style={{ marginLeft: 12 }}>Create an account</a>
         </div>
         {error && <div role="alert" style={{ marginTop: 10, color: 'crimson' }}>{error}</div>}
       </form>
