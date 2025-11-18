@@ -124,9 +124,22 @@ export default function VerticalTimeline({ refreshKey }) {
           <div style={{ marginTop: 6, display:'flex', flexWrap:'wrap', gap:6, alignItems:'center' }}>
             <span style={{ fontWeight:600 }}>{selectedTeam.name}</span>
             <span style={{ color:'#777' }}>• {(Array.isArray(selectedTeam.members)? selectedTeam.members.length : 0)} member{(Array.isArray(selectedTeam.members)? selectedTeam.members.length : 0) === 1 ? '' : 's'}</span>
-            {(Array.isArray(selectedTeam.members) ? selectedTeam.members : []).map(m => (
-              <span key={m} style={{ background:'#f5f5f5', border:'1px solid #e5e5e5', borderRadius:12, padding:'2px 8px' }}>{m}</span>
-            ))}
+            {(Array.isArray(selectedTeam.members) ? selectedTeam.members : []).map((member, idx) => {
+              const label = typeof member === 'object'
+                ? (member.name || member.username || member.email || 'Member')
+                : String(member || '')
+              const key = typeof member === 'object'
+                ? member.id || `${selectedTeam.id || 'team'}-${idx}`
+                : `${selectedTeam.id || 'team'}-${idx}-${label}`
+              return (
+                <span
+                  key={key}
+                  style={{ background:'#f5f5f5', border:'1px solid #e5e5e5', borderRadius:12, padding:'2px 8px' }}
+                >
+                  {label}
+                </span>
+              )
+            })}
           </div>
         )}
         {error && <span className="vtl-error">{error} — showing empty timeline</span>}

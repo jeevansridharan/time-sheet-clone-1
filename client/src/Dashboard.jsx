@@ -14,6 +14,7 @@ import TasksPage from './TasksPage'
 import ReportsPage from './ReportsPage'
 import TeamsPage from './TeamsPage'
 import ProfilePage from './ProfilePage'
+import WorkflowBoard from './WorkflowBoard'
 
 // Dashboard replicates layout similar to reference screenshot: sidebar, header, content tabs.
 
@@ -21,7 +22,7 @@ export default function Dashboard({ user, onLogout }) {
   const [view, setView] = useState('calendar') // 'calendar' | 'month' | 'timeline'
   const [weekStart, setWeekStart] = useState(DateTime.now().startOf('week')) // Monday by default (luxon startOf('week'))
   const [monthStart, setMonthStart] = useState(DateTime.now().startOf('month'))
-  const [route, setRoute] = useState('dashboard') // dashboard | profile | times | tasks | projects | reports | teams
+  const [route, setRoute] = useState('dashboard') // dashboard | profile | times | tasks | projects | reports | teams | workflow
   const [showNew, setShowNew] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
 
@@ -80,6 +81,7 @@ export default function Dashboard({ user, onLogout }) {
   if (route === 'teams') return <TeamsPage />
     if (route === 'tasks') return <TasksPage />
     if (route === 'reports') return <ReportsPage />
+    if (route === 'workflow') return <WorkflowBoard />
     if (route === 'profile') return <ProfilePage />
     return null
   }

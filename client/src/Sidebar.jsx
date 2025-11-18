@@ -1,13 +1,34 @@
 import React from 'react'
 
-const LINKS = [
-  { key: 'dashboard', label: 'Dashboard' },
-  { key: 'profile', label: 'Profile' },
-  { key: 'times', label: 'Times' },
-  { key: 'teams', label: 'Teams' },
-  { key: 'projects', label: 'Projects' },
-  { key: 'tasks', label: 'Tasks' },
-  { key: 'reports', label: 'Reports' }
+const NAV_GROUPS = [
+  {
+    title: null,
+    items: [
+      { key: 'dashboard', label: 'Dashboard' },
+      { key: 'times', label: 'Times' }
+    ]
+  },
+  {
+    title: 'Manage',
+    items: [
+      { key: 'projects', label: 'Projects' },
+      { key: 'tasks', label: 'Tasks' }
+    ]
+  },
+  {
+    title: 'Reports',
+    items: [
+      { key: 'reports', label: 'Reports' },
+      { key: 'workflow', label: 'Workflow' }
+    ]
+  },
+  {
+    title: 'Admin',
+    items: [
+      { key: 'teams', label: 'Teams' },
+      { key: 'profile', label: 'Profile' }
+    ]
+  }
 ]
 
 export default function Sidebar({ route }) {
@@ -16,12 +37,21 @@ export default function Sidebar({ route }) {
     <aside className="sb-root">
       <div className="sb-brand">🕒 Timesheet</div>
       <nav className="sb-nav">
-        {LINKS.map(l => (
-          <a
-            key={l.key}
-            href={hrefFor(l.key)}
-            className={route === l.key ? 'active' : ''}
-          >{l.label}</a>
+        {NAV_GROUPS.map((group, idx) => (
+          <div key={group.title || `group-${idx}`} className="sb-section">
+            {group.title && <div className="sb-section-title">{group.title}</div>}
+            <div className="sb-links">
+              {group.items.map(item => (
+                <a
+                  key={item.key}
+                  href={hrefFor(item.key)}
+                  className={route === item.key ? 'active' : ''}
+                >
+                  {item.label}
+                </a>
+              ))}
+            </div>
+          </div>
         ))}
       </nav>
     </aside>

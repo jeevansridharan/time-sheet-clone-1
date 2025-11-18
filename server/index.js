@@ -285,6 +285,43 @@ app.delete('/api/projects/:id', authMiddleware, (req, res) => {
   }
 });
 
+function normalizeAssignee(input) {
+  if (!input) return null;
+  if (typeof input === 'string') {
+    const value = input.trim();
+    return value ? { memberId: null, name: value } : null;
+  }
+  if (typeof input !== 'object') return null;
+  const result = {
+    memberId: input.memberId ? String(input.memberId).trim() : null,
+    teamId: input.teamId ? String(input.teamId).trim() : null,
+    name: typeof input.name === 'string' ? input.name.trim() : '',
+    username: typeof input.username === 'string' ? input.username.trim() : null,
+    email: typeof input.email === 'string' ? input.email.trim() : null,
+    role: typeof input.role === 'string' ? input.role.trim() : null,
+    age: input.age === '' || input.age === null || input.age === undefined ? null : Number(input.age),
+    yearJoined: input.yearJoined === '' || input.yearJoined === null || input.yearJoined === undefined ? null : Number(input.yearJoined),
+    subTask: typeof input.subTask === 'string' ? input.subTask.trim() : null
+  };
+  if (Number.isNaN(result.age)) result.age = null;
+  if (Number.isNaN(result.yearJoined)) result.yearJoined = null;
+  if (result.subTask === '') result.subTask = null;
+  if (!result.name) {
+    if (result.username) result.name = result.username;
+    else if (result.email) result.name = result.email;
+    else if (result.memberId) result.name = `Member ${result.memberId}`;
+  }
+  if (!result.name) return null;
+  const clean = {};
+  Object.entries(result).forEach(([key, value]) => {
+    if (value === null || value === undefined) return;
+    if (typeof value === 'string' && !value.trim()) return;
+    clean[key] = typeof value === 'string' ? value.trim() : value;
+  });
+  if (!clean.name) return null;
+  return clean;
+}
+
 // ---- Tasks API ----
 // GET /api/tasks?projectId=
 app.get('/api/tasks', authMiddleware, (req, res) => {
@@ -317,7 +354,7 @@ app.post('/api/tasks', authMiddleware, (req, res) => {
       projectId: projectId || null,
       teamId: teamId || null,
       status: status || 'open',
-      assignedTo: assignedTo || null,
+      assignedTo: normalizeAssignee(assignedTo),
       todos: normTodos,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
@@ -337,7 +374,10 @@ app.patch('/api/tasks/:id', authMiddleware, (req, res) => {
     if (!existing) return res.status(404).json({ error: 'not found' });
     if (existing.userId !== req.user.id) return res.status(403).json({ error: 'forbidden' });
     const patch = {};
-  ['title','description','projectId','status','teamId','assignedTo'].forEach(k => { if (k in req.body) patch[k] = req.body[k]; });
+    ['title','description','projectId','status','teamId'].forEach(k => { if (k in req.body) patch[k] = req.body[k]; });
+    if ('assignedTo' in req.body) {
+      patch.assignedTo = normalizeAssignee(req.body.assignedTo);
+    }
     if ('todos' in req.body) {
       const todos = req.body.todos;
       patch.todos = Array.isArray(todos)
@@ -377,13 +417,95 @@ app.get('/api/teams', authMiddleware, (req, res) => {
   } catch (err) { res.status(500).json({ error: 'server error' }) }
 })
 
+function normalizeWorkflow(input) {
+  const base = { leader: '', developer: '', junior: '' }
+  if (input && typeof input === 'object') {
+    if (typeof input.leader === 'string') base.leader = input.leader.trim()
+    if (typeof input.developer === 'string') base.developer = input.developer.trim()
+    if (typeof input.junior === 'string') base.junior = input.junior.trim()
+  }
+  return base
+}
+
+function normalizeTeamMembers(members) {
+  if (!Array.isArray(members)) return []
+  return members
+    .map((item, index) => {
+      if (!item) return null
+      if (typeof item === 'object') {
+        const id = item.id ? String(item.id) : uuidv4()
+        const name = typeof item.name === 'string' ? item.name.trim() : ''
+        const username = typeof item.username === 'string' ? item.username.trim() : ''
+        const email = typeof item.email === 'string' ? item.email.trim() : ''
+        const role = typeof item.role === 'string' ? item.role.trim() : ''
+        const ageValue = item.age === '' || item.age === null || item.age === undefined ? null : Number(item.age)
+        const yearValue = item.yearJoined === '' || item.yearJoined === null || item.yearJoined === undefined ? null : Number(item.yearJoined)
+        const subTask = typeof item.subTask === 'string' ? item.subTask.trim() : ''
+        if (!name && !username && !email) return null
+        return {
+          id,
+          name: name || username || email,
+          username: username || null,
+          email: email || null,
+          role: role || null,
+          age: Number.isNaN(ageValue) ? null : ageValue,
+          yearJoined: Number.isNaN(yearValue) ? null : yearValue,
+          subTask: subTask || null
+        }
+      }
+      const value = String(item).trim()
+      if (!value) return null
+      return {
+        id: uuidv4(),
+        name: value,
+        username: null,
+        email: null,
+        role: null,
+        age: null,
+        yearJoined: null,
+        subTask: null
+      }
+    })
+    .filter(Boolean)
+}
+
+function normalizeVisibility(input) {
+  if (typeof input !== 'string') return 'everyone'
+  const value = input.trim().toLowerCase().replace(/[\s-]+/g, '_')
+  if (value === 'members' || value === 'member') return 'members'
+  if (value === 'team_leader' || value === 'leader' || value === 'owner' || value === 'owner_only' || value === 'owner_managers') return 'team_leader'
+  if (value === 'disabled' || value === 'hidden' || value === 'off') return 'disabled'
+  return 'everyone'
+}
+
+function sanitizeColor(value) {
+  if (typeof value !== 'string') return '#4f46e5'
+  const raw = value.trim()
+  if (!raw) return '#4f46e5'
+  if (/^#[0-9a-f]{3,8}$/i.test(raw)) return raw
+  const cleaned = raw.replace(/[^0-9a-f]/gi, '').slice(0, 6)
+  return cleaned ? `#${cleaned.padEnd(6, '0')}` : '#4f46e5'
+}
+
 // POST /api/teams
 app.post('/api/teams', authMiddleware, (req, res) => {
   try {
-    const { name, deadline, members } = req.body || {}
+    const { name, deadline, members, workflow, description, color, visibility } = req.body || {}
     if (!name) return res.status(400).json({ error: 'name is required' })
-    const mem = Array.isArray(members) ? members.map(String) : []
-    const team = { id: uuidv4(), userId: req.user.id, name, members: mem, deadline: deadline ? new Date(deadline).toISOString() : null, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() }
+    const mem = normalizeTeamMembers(members)
+    const team = {
+      id: uuidv4(),
+      userId: req.user.id,
+      name,
+      description: typeof description === 'string' ? description.trim() || null : null,
+      color: sanitizeColor(color),
+      visibility: normalizeVisibility(visibility),
+      members: mem,
+      workflow: normalizeWorkflow(workflow),
+      deadline: deadline ? new Date(deadline).toISOString() : null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
     db.addTeam(team)
     res.status(201).json({ team })
   } catch (err) { res.status(500).json({ error: 'server error' }) }
@@ -399,7 +521,11 @@ app.patch('/api/teams/:id', authMiddleware, (req, res) => {
     const patch = {}
     if ('name' in req.body) patch.name = req.body.name
     if ('deadline' in req.body) patch.deadline = req.body.deadline ? new Date(req.body.deadline).toISOString() : null
-    if ('members' in req.body) patch.members = Array.isArray(req.body.members) ? req.body.members.map(String) : []
+    if ('members' in req.body) patch.members = normalizeTeamMembers(req.body.members)
+    if ('description' in req.body) patch.description = typeof req.body.description === 'string' ? req.body.description.trim() || null : null
+    if ('color' in req.body) patch.color = sanitizeColor(req.body.color)
+    if ('visibility' in req.body) patch.visibility = normalizeVisibility(req.body.visibility)
+    if ('workflow' in req.body) patch.workflow = normalizeWorkflow(req.body.workflow)
     const updated = db.updateTeam(id, patch)
     res.json({ team: updated })
   } catch (err) { res.status(500).json({ error: 'server error' }) }

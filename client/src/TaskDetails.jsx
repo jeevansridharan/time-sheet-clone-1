@@ -7,6 +7,18 @@ import { Bar } from 'react-chartjs-2'
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, PointElement, LineElement, Tooltip, Legend, annotationPlugin)
 
+function formatAssignee(value) {
+  if (!value) return 'Unassigned'
+  if (typeof value === 'string') return value
+  const name = value.name || value.username || value.email || 'Unassigned'
+  const extras = []
+  if (value.role) extras.push(value.role)
+  if (value.subTask) extras.push(value.subTask)
+  if (value.email && value.email !== name) extras.push(value.email)
+  if (!value.role && value.username && value.username !== name) extras.push(value.username)
+  return extras.length ? `${name} (${extras.join(' · ')})` : name
+}
+
 function useAuthHeaders() {
   const t = localStorage.getItem('tpodo_token') || sessionStorage.getItem('tpodo_token')
   return t ? { Authorization: `Bearer ${t}` } : {}
@@ -100,6 +112,8 @@ export default function TaskDetails({ taskId }) {
     }
   }), [avg])
 
+  const assigneeLabel = useMemo(() => formatAssignee(task?.assignedTo), [task])
+
   async function persistTodos(nextTodos) {
     if (!taskId) return
     try {
@@ -137,6 +151,10 @@ export default function TaskDetails({ taskId }) {
           <div className="metric" style={{ padding:12, border:'1px solid #eee', borderRadius:8 }}>
             <div style={{ fontSize:12, color:'#666' }}>Total hours</div>
             <div style={{ fontSize:22, fontWeight:700 }}>{totalHours.toFixed(2)}h</div>
+          </div>
+          <div className="metric" style={{ padding:12, border:'1px solid #eee', borderRadius:8, minWidth:180 }}>
+            <div style={{ fontSize:12, color:'#666' }}>Assigned to</div>
+            <div style={{ fontSize:14, fontWeight:600 }}>{assigneeLabel}</div>
           </div>
           <div style={{ marginLeft:'auto' }}>
             <label style={{ fontSize:12, color:'#555', marginRight:8 }}>Range:</label>
