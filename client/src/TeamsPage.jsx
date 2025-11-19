@@ -478,6 +478,7 @@ export default function TeamsPage() {
                       <th>Photo</th>
                       <th>Department</th>
                       <th>Designation</th>
+                      <th>Attendance</th>
                       <th>Hours (today)</th>
                       <th style={{ width: 70 }}>Actions</th>
                     </tr>
@@ -506,6 +507,28 @@ export default function TeamsPage() {
                             <div className="member-photo-thumb">{initials(member.name || member.username || member.email)}</div>
                           </td>
                           <td>{member.role || '—'}</td>
+
+                          <td title={(() => {
+                            if (!teamReport || !member.email) return ''
+                            const row = teamReport.find(r => r.email && member.email && r.email.toLowerCase() === String(member.email).trim().toLowerCase())
+                            if (!row || !Array.isArray(row.sessions) || !row.sessions.length) return ''
+                            return row.sessions.map(s => {
+                              const st = s.start ? new Date(s.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''
+                              const en = s.end ? new Date(s.end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'ongoing'
+                              return `${st}–${en}`
+                            }).join(', ')
+                          })()}>
+                            {(() => {
+                              if (!teamReport || !member.email) return '—'
+                              const row = teamReport.find(r => r.email && member.email && r.email.toLowerCase() === String(member.email).trim().toLowerCase())
+                              if (!row || !Array.isArray(row.sessions) || !row.sessions.length) return '—'
+                              const first = row.sessions[0]
+                              const st = first.start ? new Date(first.start).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''
+                              const en = first.end ? new Date(first.end).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'ongoing'
+                              const more = row.sessions.length > 1 ? ` (+${row.sessions.length - 1})` : ''
+                              return `${st}–${en}${more}`
+                            })()}
+                          </td>
                           
                           <td>
                             {(() => {
