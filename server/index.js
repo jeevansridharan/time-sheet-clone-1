@@ -11,7 +11,21 @@ const cors = require('cors');
 app.use(cors());
 
 // Serve static frontend files from server/public
-app.use(express.static(path.join(__dirname, 'public')));
+// If the client has been built, serve the built files from client/dist so
+// the entire app is available from the backend port (3000). Otherwise
+// fall back to server/public.
+const clientDist = path.join(__dirname, '..', 'client', 'dist')
+if (fs.existsSync(clientDist)) {
+  app.use(express.static(clientDist))
+  // ensure SPA fallback to index.html
+  app.get('*', (req, res, next) => {
+    const idx = path.join(clientDist, 'index.html')
+    if (fs.existsSync(idx)) return res.sendFile(idx)
+    return next()
+  })
+} else {
+  app.use(express.static(path.join(__dirname, 'public')));
+}
 
 // Setup routes: web form to create initial admin (only when DB is empty)
 app.get('/setup', (req, res) => {
