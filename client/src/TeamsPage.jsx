@@ -355,7 +355,7 @@ export default function TeamsPage() {
               <th>Description</th>
               <th>Visibility</th>
               <th>Projects</th>
-              <th>Members</th>
+              <th>Employees</th>
               <th style={{ width: 120 }}>Actions</th>
             </tr>
           </thead>
@@ -374,7 +374,14 @@ export default function TeamsPage() {
                   <td>{team.description || '—'}</td>
                   <td>{visibilityLabel(team.visibility)}</td>
                   <td>{projectCount}</td>
-                  <td>{members.length}</td>
+                  <td title={members.map(m => (m && (m.name || m.email || '') )).filter(Boolean).join(', ')}>
+                    {(() => {
+                      const names = members.map(m => (m && (m.name || m.email || ''))).filter(Boolean)
+                      if (!names.length) return '—'
+                      if (names.length <= 2) return names.join(', ')
+                      return `${names.slice(0,2).join(', ')} (+${names.length - 2})`
+                    })()}
+                  </td>
                   <td>
                     <div className="teams-actions">
                       <button onClick={() => openEditForm(team)}>Edit</button>
