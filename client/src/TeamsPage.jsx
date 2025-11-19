@@ -13,7 +13,7 @@ const EMPTY_MEMBER_FORM = {
   email: '',
   age: '',
   yearJoined: '',
-  subTask: ''
+  
 }
 
 function safeId(prefix = 'mem') {
@@ -292,7 +292,7 @@ export default function TeamsPage() {
       email: memberForm.email.trim(),
       age: memberForm.age.trim(),
       yearJoined: memberForm.yearJoined.trim(),
-      subTask: memberForm.subTask.trim()
+      
     }
 
     if (!trimmed.name && !trimmed.email) {
@@ -506,7 +506,7 @@ export default function TeamsPage() {
                             <div className="member-photo-thumb">{initials(member.name || member.username || member.email)}</div>
                           </td>
                           <td>{member.role || '—'}</td>
-                          <td>{member.subTask || '—'}</td>
+                          
                           <td>
                             {(() => {
                               if (!teamReport || !member.email) return '—'
@@ -592,15 +592,7 @@ export default function TeamsPage() {
                       disabled={saving}
                     />
                   </label>
-                  <label>
-                    <span>Designation</span>
-                    <input
-                      value={memberForm.subTask}
-                      onChange={e => setMemberForm(f => ({ ...f, subTask: e.target.value }))}
-                      placeholder="Administrator"
-                      disabled={saving}
-                    />
-                  </label>
+                  
                   <label>
                     <span>Year joined</span>
                     <input
