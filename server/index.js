@@ -285,6 +285,66 @@ app.delete('/api/projects/:id', authMiddleware, (req, res) => {
   }
 });
 
+// ---- People API ----
+// GET /api/people
+app.get('/api/people', authMiddleware, (req, res) => {
+  try {
+    const all = db.getPeople()
+    // only return people created by this user (userId) or all if admin; for now filter by owner
+    const people = all.filter(p => p.userId === req.user.id)
+    res.json({ people })
+  } catch (err) { res.status(500).json({ error: 'server error' }) }
+})
+
+// POST /api/people
+app.post('/api/people', authMiddleware, (req, res) => {
+  try {
+    const { name, email, department, role } = req.body || {}
+    if (!name && !email) return res.status(400).json({ error: 'name or email required' })
+    const person = {
+      id: uuidv4(),
+      userId: req.user.id,
+      name: name ? String(name).trim() : (email ? String(email).trim() : 'Unknown'),
+      email: email ? String(email).trim() : null,
+      department: department ? String(department).trim() : null,
+      role: role ? String(role).trim() : null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    }
+    db.addPerson(person)
+    res.status(201).json({ person })
+  } catch (err) { res.status(500).json({ error: 'server error' }) }
+})
+
+// PATCH /api/people/:id
+app.patch('/api/people/:id', authMiddleware, (req, res) => {
+  try {
+    const id = req.params.id
+    const existing = db.findPersonById(id)
+    if (!existing) return res.status(404).json({ error: 'not found' })
+    if (existing.userId !== req.user.id) return res.status(403).json({ error: 'forbidden' })
+    const patch = {}
+    if ('name' in req.body) patch.name = req.body.name
+    if ('email' in req.body) patch.email = req.body.email
+    if ('department' in req.body) patch.department = req.body.department
+    if ('role' in req.body) patch.role = req.body.role
+    const updated = db.updatePerson(id, patch)
+    res.json({ person: updated })
+  } catch (err) { res.status(500).json({ error: 'server error' }) }
+})
+
+// DELETE /api/people/:id
+app.delete('/api/people/:id', authMiddleware, (req, res) => {
+  try {
+    const id = req.params.id
+    const existing = db.findPersonById(id)
+    if (!existing) return res.status(404).json({ error: 'not found' })
+    if (existing.userId !== req.user.id) return res.status(403).json({ error: 'forbidden' })
+    const ok = db.deletePerson(id)
+    res.json({ ok })
+  } catch (err) { res.status(500).json({ error: 'server error' }) }
+})
+
 function normalizeAssignee(input) {
   if (!input) return null;
   if (typeof input === 'string') {

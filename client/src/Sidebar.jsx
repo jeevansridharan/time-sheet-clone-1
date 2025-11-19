@@ -12,7 +12,8 @@ const NAV_GROUPS = [
     title: 'Manage',
     items: [
       { key: 'projects', label: 'Projects' },
-      { key: 'tasks', label: 'Tasks' }
+      { key: 'tasks', label: 'Tasks' },
+      { key: 'people', label: 'People' }
     ]
   },
   {

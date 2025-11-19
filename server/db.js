@@ -13,8 +13,9 @@ function load() {
       if (!Array.isArray(_db.users)) _db.users = [];
       if (!Array.isArray(_db.entries)) _db.entries = [];
       if (!Array.isArray(_db.projects)) _db.projects = [];
-  if (!Array.isArray(_db.tasks)) _db.tasks = [];
-  if (!Array.isArray(_db.teams)) _db.teams = [];
+      if (!Array.isArray(_db.tasks)) _db.tasks = [];
+      if (!Array.isArray(_db.teams)) _db.teams = [];
+      if (!Array.isArray(_db.people)) _db.people = [];
     } else {
       save();
     }
@@ -84,6 +85,25 @@ function addUser(user) {
 // Projects
 function getProjects() {
   return _db.projects || [];
+}
+
+// People (global employee list)
+function getPeople() { return _db.people || [] }
+function findPersonById(id) { return getPeople().find(p => p.id === id) }
+function addPerson(person) { _db.people = _db.people || []; _db.people.push(person); save() }
+function updatePerson(id, patch) {
+  const idx = getPeople().findIndex(p => p.id === id)
+  if (idx === -1) return null
+  _db.people[idx] = { ..._db.people[idx], ...patch, updatedAt: new Date().toISOString() }
+  save()
+  return _db.people[idx]
+}
+function deletePerson(id) {
+  const before = getPeople().length
+  _db.people = getPeople().filter(p => p.id !== id)
+  const after = _db.people.length
+  if (after !== before) save()
+  return before !== after
 }
 function findProjectById(id) {
   return getProjects().find(p => p.id === id);
@@ -185,6 +205,12 @@ module.exports = {
   addTeam,
   updateTeam,
   deleteTeam,
+  // people
+  getPeople,
+  findPersonById,
+  addPerson,
+  updatePerson,
+  deletePerson,
   save,
   DB_PATH
 };

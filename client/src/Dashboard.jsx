@@ -15,6 +15,7 @@ import ReportsPage from './ReportsPage'
 import TeamsPage from './TeamsPage'
 import ProfilePage from './ProfilePage'
 import WorkflowBoard from './WorkflowBoard'
+import PeoplePage from './PeoplePage'
 
 // Dashboard replicates layout similar to reference screenshot: sidebar, header, content tabs.
 
@@ -79,6 +80,7 @@ export default function Dashboard({ user, onLogout }) {
     if (route === 'times') return <TimesList refreshKey={refreshKey} />
   if (route === 'projects') return <ProjectsPage />
   if (route === 'teams') return <TeamsPage />
+    if (route === 'people') return <PeoplePage />
     if (route === 'tasks') return <TasksPage />
     if (route === 'reports') return <ReportsPage />
     if (route === 'workflow') return <WorkflowBoard />
