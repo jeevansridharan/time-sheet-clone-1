@@ -116,6 +116,8 @@ export default function TeamsPage() {
   const [selectedTeamId, setSelectedTeamId] = useState(null)
   const [memberForm, setMemberForm] = useState(EMPTY_MEMBER_FORM)
   const [memberError, setMemberError] = useState(null)
+  const [peopleList, setPeopleList] = useState([])
+  const [selectedPersonId, setSelectedPersonId] = useState(null)
   const [viewFilter, setViewFilter] = useState('employee')
   const [dataScope, setDataScope] = useState('all')
   const [showMemberForm, setShowMemberForm] = useState(false)
@@ -243,7 +245,23 @@ export default function TeamsPage() {
     setMemberError(null)
     setSelectedMemberIds([])
     setShowMemberForm(false)
+    setSelectedPersonId(null)
   }, [selectedTeamId])
+
+  useEffect(() => {
+    // load global people for the Add member form
+    let mounted = true
+    (async () => {
+      try {
+        const res = await axios.get('/api/people', { headers })
+        if (!mounted) return
+        setPeopleList(res.data.people || [])
+      } catch (err) {
+        // ignore
+      }
+    })()
+    return () => { mounted = false }
+  }, [])
 
   // load team report (hours) when a team is selected
   useEffect(() => {
@@ -284,29 +302,49 @@ export default function TeamsPage() {
 
   async function addMember() {
     if (!selectedTeam) return
-    const trimmed = {
-      id: safeId(),
-      name: memberForm.name.trim(),
-      username: memberForm.username.trim(),
-      role: memberForm.role.trim(),
-      email: memberForm.email.trim(),
-      age: memberForm.age.trim(),
-      yearJoined: memberForm.yearJoined.trim(),
-      
-    }
-
-    if (!trimmed.name && !trimmed.email) {
-      setMemberError('Provide at least a name or an email')
-      return
-    }
-
     try {
       setSaving(true)
       setMemberError(null)
+      let trimmed
+      if (selectedPersonId) {
+        const found = peopleList.find(p => p.id === selectedPersonId)
+        if (!found) {
+          setMemberError('Selected person not found')
+          setSaving(false)
+          return
+        }
+        trimmed = {
+          id: safeId(),
+          name: found.name || '',
+          username: found.email ? found.email.split('@')[0] : '',
+          role: found.role || '',
+          email: found.email || '',
+          age: '',
+          yearJoined: ''
+        }
+      } else {
+        trimmed = {
+          id: safeId(),
+          name: memberForm.name.trim(),
+          username: memberForm.username.trim(),
+          role: memberForm.role.trim(),
+          email: memberForm.email.trim(),
+          age: memberForm.age.trim(),
+          yearJoined: memberForm.yearJoined.trim()
+        }
+      }
+
+      if (!trimmed.name && !trimmed.email) {
+        setMemberError('Provide at least a name or an email')
+        setSaving(false)
+        return
+      }
+
       const nextMembers = serializeMembers([...memberList, trimmed])
       await axios.patch(`/api/teams/${selectedTeam.id}`, { members: nextMembers }, { headers })
       setMemberForm(EMPTY_MEMBER_FORM)
       setShowMemberForm(false)
+      setSelectedPersonId(null)
       await load(true)
     } catch (err) {
       setMemberError(err?.response?.data?.error || 'Failed to add member')
