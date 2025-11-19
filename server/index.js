@@ -417,6 +417,69 @@ app.get('/api/teams', authMiddleware, (req, res) => {
   } catch (err) { res.status(500).json({ error: 'server error' }) }
 })
 
+// GET /api/team-report/:teamId?from=ISO&to=ISO
+// Returns aggregated worked seconds/hours for each member in the team.
+app.get('/api/team-report/:teamId', authMiddleware, (req, res) => {
+  try {
+    const teamId = req.params.teamId
+    const team = db.findTeamById(teamId)
+    if (!team) return res.status(404).json({ error: 'team not found' })
+
+    // parse date range
+    const fromIso = req.query.from || null
+    const toIso = req.query.to || null
+    const from = fromIso ? new Date(fromIso) : new Date(new Date().setHours(0,0,0,0))
+    const to = toIso ? new Date(toIso) : new Date()
+
+    const members = Array.isArray(team.members) ? team.members : []
+    const result = []
+
+    members.forEach(member => {
+      // try match by email to a real user (if present)
+      const email = member && member.email ? String(member.email).trim().toLowerCase() : null
+      let user = null
+      if (email) user = db.findUserByEmail(email)
+
+      // If user found, gather entries by user id; otherwise no entries available
+      const sessions = []
+      let totalSeconds = 0
+      if (user) {
+        const all = db.getEntries().filter(e => e.userId === user.id)
+        all.forEach(e => {
+          const s = e.start ? new Date(e.start) : null
+          const t = e.end ? new Date(e.end) : null
+          if (!s) return
+          const endTime = t || new Date()
+          if (endTime < from || s > to) return
+          // overlap clip within [from, to]
+          const clipStart = s < from ? from : s
+          const clipEnd = endTime > to ? to : endTime
+          const sec = Math.max(0, Math.floor((clipEnd.getTime() - clipStart.getTime()) / 1000))
+          if (sec > 0) {
+            sessions.push({ id: e.id, start: s.toISOString(), end: t ? t.toISOString() : null, seconds: sec })
+            totalSeconds += sec
+          }
+        })
+      }
+
+      result.push({
+        memberId: member.id || null,
+        name: member.name || member.username || member.email || 'Unknown',
+        email: member.email || null,
+        userId: user ? user.id : null,
+        totalSeconds,
+        totalHours: +(totalSeconds / 3600).toFixed(2),
+        sessions
+      })
+    })
+
+    return res.json({ teamId, from: from.toISOString(), to: to.toISOString(), report: result })
+  } catch (err) {
+    console.error('team-report error', err)
+    return res.status(500).json({ error: 'server error' })
+  }
+})
+
 function normalizeWorkflow(input) {
   const base = { leader: '', developer: '', junior: '' }
   if (input && typeof input === 'object') {

@@ -236,11 +236,36 @@ export default function TeamsPage() {
     return raw.map((item, index) => normalizeMember(item, index)).filter(Boolean)
   }, [selectedTeam])
 
+  const [teamReport, setTeamReport] = useState(null)
+
   useEffect(() => {
     setMemberForm(EMPTY_MEMBER_FORM)
     setMemberError(null)
     setSelectedMemberIds([])
     setShowMemberForm(false)
+  }, [selectedTeamId])
+
+  // load team report (hours) when a team is selected
+  useEffect(() => {
+    let mounted = true
+    if (!selectedTeamId) {
+      setTeamReport(null)
+      return
+    }
+    (async () => {
+      try {
+        setLoading(true)
+        const res = await axios.get(`/api/team-report/${selectedTeamId}`, { headers })
+        if (!mounted) return
+        setTeamReport(res.data.report || [])
+      } catch (err) {
+        if (!mounted) return
+        setTeamReport(null)
+      } finally {
+        if (mounted) setLoading(false)
+      }
+    })()
+    return () => { mounted = false }
   }, [selectedTeamId])
 
   useEffect(() => {
@@ -453,6 +478,7 @@ export default function TeamsPage() {
                       <th>Photo</th>
                       <th>Department</th>
                       <th>Designation</th>
+                      <th>Hours (today)</th>
                       <th style={{ width: 70 }}>Actions</th>
                     </tr>
                   </thead>
@@ -481,6 +507,14 @@ export default function TeamsPage() {
                           </td>
                           <td>{member.role || '—'}</td>
                           <td>{member.subTask || '—'}</td>
+                          <td>
+                            {(() => {
+                              if (!teamReport || !member.email) return '—'
+                              const row = teamReport.find(r => r.email && member.email && r.email.toLowerCase() === String(member.email).trim().toLowerCase())
+                              if (!row) return '—'
+                              return `${row.totalHours}h`
+                            })()}
+                          </td>
                           <td>
                             <button className="member-remove" onClick={() => removeMember(member.id)} disabled={saving}>Remove</button>
                           </td>

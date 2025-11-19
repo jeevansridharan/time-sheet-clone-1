@@ -35,7 +35,13 @@ export default function Sidebar({ route }) {
   function hrefFor(key) { return `#/${key}` }
   return (
     <aside className="sb-root">
-      <div className="sb-brand">🕒 Timesheet</div>
+      <div className="sb-brand">
+        <div className="sb-logo">TP</div>
+        <div className="sb-brand-text">
+          <div className="sb-title">TimeSheet</div>
+          <div className="sb-sub">MySpace</div>
+        </div>
+      </div>
       <nav className="sb-nav">
         {NAV_GROUPS.map((group, idx) => (
           <div key={group.title || `group-${idx}`} className="sb-section">
@@ -46,8 +52,10 @@ export default function Sidebar({ route }) {
                   key={item.key}
                   href={hrefFor(item.key)}
                   className={route === item.key ? 'active' : ''}
+                  title={item.label}
                 >
-                  {item.label}
+                  <span className="sb-item-icon">•</span>
+                  <span className="sb-item-label">{item.label}</span>
                 </a>
               ))}
             </div>
