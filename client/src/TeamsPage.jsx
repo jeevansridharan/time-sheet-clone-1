@@ -217,7 +217,9 @@ export default function TeamsPage() {
       await axios.delete(`/api/teams/${team.id}`, { headers })
       if (selectedTeamId === team.id) {
         setSelectedTeamId(null)
-        setMemberDraft('')
+        setMemberForm(EMPTY_MEMBER_FORM)
+        setShowMemberForm(false)
+        setSelectedPersonId(null)
       }
       await load(true)
     } catch (err) {

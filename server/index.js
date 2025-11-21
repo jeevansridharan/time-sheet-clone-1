@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 const db = require('./db');
+const prisma = require('./prismaClient');
 
 const app = express();
 app.use(express.json());
@@ -18,8 +19,8 @@ app.use(cors());
 const clientDist = path.join(__dirname, '..', 'client', 'dist')
 if (fs.existsSync(clientDist)) {
   app.use(express.static(clientDist))
-  // ensure SPA fallback to index.html
-  app.get('*', (req, res, next) => {
+  // ensure SPA fallback to index.html for non-API routes only
+  app.get(/^(?!\/api).*/, (req, res, next) => {
     const idx = path.join(clientDist, 'index.html')
     if (fs.existsSync(idx)) return res.sendFile(idx)
     return next()
@@ -111,6 +112,18 @@ app.post('/register', (req, res) => {
     createdAt: new Date().toISOString()
   };
   db.addUser(user);
+  // Also ensure the user exists in Prisma so they can create projects immediately
+  (async () => {
+    try {
+      await prisma.user.upsert({
+        where: { email: String(email) },
+        update: { name: user.name || undefined, password: user.password },
+        create: { id: user.id, email: String(email), name: user.name || null, password: user.password }
+      })
+    } catch (err) {
+      console.error('Prisma upsert user failed on register:', err)
+    }
+  })()
   const { password: _p, ...publicUser } = user;
   res.status(201).json({ user: publicUser });
 });
@@ -237,65 +250,68 @@ app.delete('/api/entries/:id', authMiddleware, (req, res) => {
 });
 
 // ---- Projects API ----
+// Use Prisma for project persistence.
 // GET /api/projects
-app.get('/api/projects', authMiddleware, (req, res) => {
+app.get('/api/projects', authMiddleware, async (req, res) => {
   try {
-    const all = db.getProjects();
-    const projects = all.filter(p => p.userId === req.user.id);
+    const projects = await prisma.project.findMany({ where: { userId: req.user.id }, orderBy: { createdAt: 'desc' } });
     res.json({ projects });
   } catch (err) {
+    console.error('GET /api/projects error', err);
     res.status(500).json({ error: 'server error' });
   }
 });
 
 // POST /api/projects
-app.post('/api/projects', authMiddleware, (req, res) => {
+app.post('/api/projects', authMiddleware, async (req, res) => {
   try {
     const { name, description, hourlyRate } = req.body || {};
     if (!name) return res.status(400).json({ error: 'name is required' });
-    const project = {
-      id: uuidv4(),
-      userId: req.user.id,
-      name,
-      description: description || null,
-      hourlyRate: typeof hourlyRate === 'number' ? hourlyRate : (hourlyRate ? Number(hourlyRate) : null),
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-    db.addProject(project);
+    const project = await prisma.project.create({
+      data: {
+        userId: req.user.id,
+        name: String(name),
+        description: description ? String(description) : null,
+        hourlyRate: hourlyRate != null ? Number(hourlyRate) : null
+      }
+    });
     res.status(201).json({ project });
   } catch (err) {
+    console.error('POST /api/projects error', err);
     res.status(500).json({ error: 'server error' });
   }
 });
 
 // PATCH /api/projects/:id
-app.patch('/api/projects/:id', authMiddleware, (req, res) => {
+app.patch('/api/projects/:id', authMiddleware, async (req, res) => {
   try {
     const id = req.params.id;
-    const existing = db.findProjectById(id);
+    const existing = await prisma.project.findUnique({ where: { id } });
     if (!existing) return res.status(404).json({ error: 'not found' });
     if (existing.userId !== req.user.id) return res.status(403).json({ error: 'forbidden' });
     const patch = {};
-    ['name', 'description', 'hourlyRate'].forEach(k => { if (k in req.body) patch[k] = req.body[k]; });
-    if ('hourlyRate' in patch && patch.hourlyRate != null) patch.hourlyRate = Number(patch.hourlyRate);
-    const updated = db.updateProject(id, patch);
+    if ('name' in req.body) patch.name = req.body.name;
+    if ('description' in req.body) patch.description = req.body.description;
+    if ('hourlyRate' in req.body) patch.hourlyRate = req.body.hourlyRate != null ? Number(req.body.hourlyRate) : null;
+    const updated = await prisma.project.update({ where: { id }, data: patch });
     res.json({ project: updated });
   } catch (err) {
+    console.error('PATCH /api/projects/:id error', err);
     res.status(500).json({ error: 'server error' });
   }
 });
 
 // DELETE /api/projects/:id
-app.delete('/api/projects/:id', authMiddleware, (req, res) => {
+app.delete('/api/projects/:id', authMiddleware, async (req, res) => {
   try {
     const id = req.params.id;
-    const existing = db.findProjectById(id);
+    const existing = await prisma.project.findUnique({ where: { id } });
     if (!existing) return res.status(404).json({ error: 'not found' });
     if (existing.userId !== req.user.id) return res.status(403).json({ error: 'forbidden' });
-    const ok = db.deleteProject(id);
-    res.json({ ok });
+    await prisma.project.delete({ where: { id } });
+    res.json({ ok: true });
   } catch (err) {
+    console.error('DELETE /api/projects/:id error', err);
     res.status(500).json({ error: 'server error' });
   }
 });

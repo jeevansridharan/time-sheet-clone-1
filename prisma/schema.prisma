@@ -3,7 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "mysql"
+  // Use SQLite for local development by default. To use MySQL, set
+  // `DATABASE_URL` in your environment and change provider to "mysql".
+  provider = "sqlite"
   url      = env("DATABASE_URL")
 }
 
@@ -15,6 +17,7 @@ model User {
   role      String?  @default("user")
   createdAt DateTime @default(now())
   entries   Entry[]
+  projects  Project[]
 }
 
 model Entry {
@@ -27,6 +30,17 @@ model Entry {
   end        DateTime?
   description String?
   billable   Boolean  @default(false)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}
+
+model Project {
+  id         String   @id @default(uuid())
+  user       User     @relation(fields: [userId], references: [id])
+  userId     String
+  name       String
+  description String?
+  hourlyRate Float?
   createdAt  DateTime @default(now())
   updatedAt  DateTime @updatedAt
 }
