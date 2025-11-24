@@ -409,6 +409,10 @@ app.get('/api/projects', authMiddleware, async (req, res) => {
 // POST /api/projects
 app.post('/api/projects', authMiddleware, async (req, res) => {
   try {
+    // Only managers can create projects
+    if (req.user.role !== 'manager') {
+      return res.status(403).json({ error: 'Only managers can create projects' });
+    }
     const { name, description, hourlyRate, deadline } = req.body || {};
     if (!name) return res.status(400).json({ error: 'name is required' });
     const project = await prisma.project.create({
@@ -430,6 +434,10 @@ app.post('/api/projects', authMiddleware, async (req, res) => {
 // PATCH /api/projects/:id
 app.patch('/api/projects/:id', authMiddleware, async (req, res) => {
   try {
+    // Only managers can edit projects
+    if (req.user.role !== 'manager') {
+      return res.status(403).json({ error: 'Only managers can edit projects' });
+    }
     const id = req.params.id;
     const existing = await prisma.project.findUnique({ where: { id } });
     if (!existing) return res.status(404).json({ error: 'not found' });
@@ -450,6 +458,10 @@ app.patch('/api/projects/:id', authMiddleware, async (req, res) => {
 // DELETE /api/projects/:id
 app.delete('/api/projects/:id', authMiddleware, async (req, res) => {
   try {
+    // Only managers can delete projects
+    if (req.user.role !== 'manager') {
+      return res.status(403).json({ error: 'Only managers can delete projects' });
+    }
     const id = req.params.id;
     const existing = await prisma.project.findUnique({ where: { id } });
     if (!existing) return res.status(404).json({ error: 'not found' });
@@ -476,6 +488,10 @@ app.get('/api/people', authMiddleware, (req, res) => {
 // POST /api/people
 app.post('/api/people', authMiddleware, (req, res) => {
   try {
+    // Only managers can add people
+    if (req.user.role !== 'manager') {
+      return res.status(403).json({ error: 'Only managers can add people' });
+    }
     const { name, email, department, role } = req.body || {}
     if (!name && !email) return res.status(400).json({ error: 'name or email required' })
     const person = {
@@ -496,6 +512,10 @@ app.post('/api/people', authMiddleware, (req, res) => {
 // PATCH /api/people/:id
 app.patch('/api/people/:id', authMiddleware, (req, res) => {
   try {
+    // Only managers can edit people
+    if (req.user.role !== 'manager') {
+      return res.status(403).json({ error: 'Only managers can edit people' });
+    }
     const id = req.params.id
     const existing = db.findPersonById(id)
     if (!existing) return res.status(404).json({ error: 'not found' })
@@ -513,6 +533,10 @@ app.patch('/api/people/:id', authMiddleware, (req, res) => {
 // DELETE /api/people/:id
 app.delete('/api/people/:id', authMiddleware, (req, res) => {
   try {
+    // Only managers can delete people
+    if (req.user.role !== 'manager') {
+      return res.status(403).json({ error: 'Only managers can delete people' });
+    }
     const id = req.params.id
     const existing = db.findPersonById(id)
     if (!existing) return res.status(404).json({ error: 'not found' })
@@ -575,6 +599,10 @@ app.get('/api/tasks', authMiddleware, (req, res) => {
 // POST /api/tasks
 app.post('/api/tasks', authMiddleware, (req, res) => {
   try {
+    // Only managers can create tasks
+    if (req.user.role !== 'manager') {
+      return res.status(403).json({ error: 'Only managers can create tasks' });
+    }
     const { title, description, projectId, status, teamId, todos, assignedTo } = req.body || {};
     if (!title) return res.status(400).json({ error: 'title is required' });
     const normTodos = Array.isArray(todos)
@@ -606,6 +634,10 @@ app.post('/api/tasks', authMiddleware, (req, res) => {
 // PATCH /api/tasks/:id
 app.patch('/api/tasks/:id', authMiddleware, (req, res) => {
   try {
+    // Only managers can edit tasks
+    if (req.user.role !== 'manager') {
+      return res.status(403).json({ error: 'Only managers can edit tasks' });
+    }
     const id = req.params.id;
     const existing = db.findTaskById(id);
     if (!existing) return res.status(404).json({ error: 'not found' });
@@ -634,6 +666,10 @@ app.patch('/api/tasks/:id', authMiddleware, (req, res) => {
 // DELETE /api/tasks/:id
 app.delete('/api/tasks/:id', authMiddleware, (req, res) => {
   try {
+    // Only managers can delete tasks
+    if (req.user.role !== 'manager') {
+      return res.status(403).json({ error: 'Only managers can delete tasks' });
+    }
     const id = req.params.id;
     const existing = db.findTaskById(id);
     if (!existing) return res.status(404).json({ error: 'not found' });

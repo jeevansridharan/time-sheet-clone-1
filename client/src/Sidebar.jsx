@@ -23,13 +23,7 @@ const NAV_GROUPS = [
       { key: 'workflow', label: 'Workflow' }
     ]
   },
-  {
-    title: 'Admin',
-    items: [
-      { key: 'teams', label: 'Teams' },
-      { key: 'profile', label: 'Profile' }
-    ]
-  }
+
 ]
 
 export default function Sidebar({ route }) {

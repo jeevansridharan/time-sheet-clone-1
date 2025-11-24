@@ -12,8 +12,6 @@ import TimesList from './TimesList'
 import ProjectsPage from './ProjectsPage'
 import TasksPage from './TasksPage'
 import ReportsPage from './ReportsPage'
-import TeamsPage from './TeamsPage'
-import ProfilePage from './ProfilePage'
 import WorkflowBoard from './WorkflowBoard'
 import PeoplePage from './PeoplePage'
 
@@ -79,12 +77,10 @@ export default function Dashboard({ user, onLogout }) {
     }
     if (route === 'times') return <TimesList refreshKey={refreshKey} />
   if (route === 'projects') return <ProjectsPage user={user} />
-  if (route === 'teams') return <TeamsPage user={user} />
     if (route === 'people') return <PeoplePage user={user} />
     if (route === 'tasks') return <TasksPage user={user} />
     if (route === 'reports') return <ReportsPage />
     if (route === 'workflow') return <WorkflowBoard />
-    if (route === 'profile') return <ProfilePage />
     return null
   }
 

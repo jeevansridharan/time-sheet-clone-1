@@ -24,18 +24,24 @@ function normalizeWorkflow(team) {
 export default function WorkflowBoard() {
   const headers = useAuthHeaders()
   const [teams, setTeams] = useState([])
+  const [projects, setProjects] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [saving, setSaving] = useState(false)
   const [editing, setEditing] = useState(null) // { teamId, role }
   const [draft, setDraft] = useState('')
+  const [selectedTeam, setSelectedTeam] = useState(null)
 
   async function load() {
     setLoading(true)
     setError(null)
     try {
-      const res = await axios.get('/api/teams', { headers })
-      setTeams(res.data.teams || [])
+      const [teamsRes, projectsRes] = await Promise.all([
+        axios.get('/api/teams', { headers }),
+        axios.get('/api/projects', { headers })
+      ])
+      setTeams(teamsRes.data.teams || [])
+      setProjects(projectsRes.data.projects || [])
     } catch (e) {
       setError('Failed to load workflows')
     } finally {
@@ -87,54 +93,98 @@ export default function WorkflowBoard() {
   if (error) return <div style={{ color: 'crimson' }}>{error}</div>
   if (!teams.length) return <div>No teams yet. Create a team first to define its workflow.</div>
 
+  // Count projects per team
+  const projectsByTeam = {}
+  projects.forEach(project => {
+    const teamId = project.teamId
+    if (teamId) {
+      projectsByTeam[teamId] = (projectsByTeam[teamId] || 0) + 1
+    }
+  })
+
   return (
     <div className="workflow-board">
-      {ROLES.map(role => (
-        <div key={role.key} className="workflow-column">
-          <header className="workflow-column-header">
-            <h4>{role.label}</h4>
-            <p>{role.description}</p>
-          </header>
-          <div className="workflow-cards">
-            {teams.map(team => {
-              const wf = normalizeWorkflow(team)
-              const isEditing = editing && editing.teamId === team.id && editing.role === role.key
-              return (
-                <div key={team.id} className="workflow-card">
-                  <div className="workflow-card-title">{team.name}</div>
-                  {isEditing ? (
-                    <div className="workflow-edit">
-                      <textarea
-                        value={draft}
-                        onChange={e => setDraft(e.target.value)}
-                        rows={4}
-                        placeholder={`Describe the ${role.label.toLowerCase()} workflow for ${team.name}`}
-                      />
-                      <div className="workflow-edit-actions">
-                        <button type="button" onClick={saveEdit} disabled={saving}>
-                          {saving ? 'Saving…' : 'Save'}
-                        </button>
-                        <button type="button" onClick={cancelEdit} disabled={saving}>Cancel</button>
-                      </div>
-                    </div>
-                  ) : (
-                    <>
-                      <div className="workflow-card-body">
-                        {wf[role.key] ? wf[role.key] : <span className="workflow-empty">No details yet</span>}
-                      </div>
-                      <button
-                        type="button"
-                        className="workflow-edit-btn"
-                        onClick={() => startEdit(team.id, role.key)}
-                      >Edit</button>
-                    </>
-                  )}
+      <div className="workflow-teams-list" style={{ marginBottom: '24px', padding: '16px', background: '#f8f9fa', borderRadius: '8px' }}>
+        <h3 style={{ marginBottom: '16px', fontSize: '20px', fontWeight: '600' }}>Teams Overview</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
+          {teams.map(team => {
+            const projectCount = projectsByTeam[team.id] || 0
+            const members = team.members || []
+            const isSelected = selectedTeam?.id === team.id
+            return (
+              <div 
+                key={team.id} 
+                style={{ 
+                  padding: '16px', 
+                  background: 'white', 
+                  border: isSelected ? '2px solid #007bff' : '1px solid #dee2e6',
+                  borderRadius: '8px',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                  boxShadow: isSelected ? '0 4px 12px rgba(0,123,255,0.15)' : '0 2px 4px rgba(0,0,0,0.05)'
+                }}
+                onClick={() => setSelectedTeam(isSelected ? null : team)}
+              >
+                <div style={{ marginBottom: '12px' }}>
+                  <h4 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '4px' }}>{team.name}</h4>
+                  <div style={{ fontSize: '13px', color: '#6c757d' }}>
+                    {projectCount} {projectCount === 1 ? 'project' : 'projects'} • {members.length} {members.length === 1 ? 'member' : 'members'}
+                  </div>
                 </div>
-              )
-            })}
-          </div>
+                {isSelected && members.length > 0 && (
+                  <div style={{ 
+                    marginTop: '12px', 
+                    paddingTop: '12px', 
+                    borderTop: '1px solid #e9ecef'
+                  }}>
+                    <div style={{ fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: '#495057' }}>Team Members:</div>
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      {members.map((member, idx) => (
+                        <div 
+                          key={idx}
+                          style={{ 
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            padding: '6px 10px',
+                            background: '#f8f9fa',
+                            borderRadius: '4px',
+                            fontSize: '13px'
+                          }}
+                        >
+                          <span style={{ fontWeight: '500' }}>{member.name || member.email || 'Unknown'}</span>
+                          <span style={{ 
+                            padding: '2px 8px',
+                            background: '#007bff',
+                            color: 'white',
+                            borderRadius: '12px',
+                            fontSize: '11px',
+                            fontWeight: '500'
+                          }}>
+                            {member.role || 'Member'}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+                {isSelected && members.length === 0 && (
+                  <div style={{ 
+                    marginTop: '12px', 
+                    paddingTop: '12px', 
+                    borderTop: '1px solid #e9ecef',
+                    fontSize: '13px',
+                    color: '#6c757d',
+                    fontStyle: 'italic'
+                  }}>
+                    No members in this team yet
+                  </div>
+                )}
+              </div>
+            )
+          })}
         </div>
-      ))}
+      </div>
     </div>
   )
 }

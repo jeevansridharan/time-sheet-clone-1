@@ -28,6 +28,7 @@ export default function ProjectsPage({ user }) {
   const [editingProject, setEditingProject] = useState(null)
   const [editForm, setEditForm] = useState({ name: '', description: '', deadline: '' })
 
+  console.log('ProjectsPage user object:', user)
   const isManager = user?.role === 'manager'
 
   function authHeaders() {
@@ -358,6 +359,7 @@ export default function ProjectsPage({ user }) {
 
         {activeTab === 'tasks' && (
           <div>
+            {isManager && (
             <form onSubmit={addTaskToProject} style={{ display:'flex', gap:8, marginBottom:16, flexWrap:'wrap' }}>
               <input 
                 placeholder="Task title" 
@@ -392,6 +394,7 @@ export default function ProjectsPage({ user }) {
                 {addingTask ? 'Adding…' : 'Add Task'}
               </button>
             </form>
+            )}
             <table style={{ width:'100%', borderCollapse:'collapse', background:'#fff', border:'1px solid #e6e6e6', borderRadius:8 }}>
               <thead>
                 <tr style={{ background:'#fafafa' }}>
@@ -580,7 +583,10 @@ export default function ProjectsPage({ user }) {
   return (
     <div>
       <h3 style={{ margin:'8px 0' }}>Projects</h3>
-      {isManager && (
+      <div style={{ marginBottom:12, padding:8, background:'#f0f0f0', borderRadius:4, fontSize:12 }}>
+        User Role: <strong>{user?.role || 'unknown'}</strong> | Manager Access: <strong>{isManager ? 'YES' : 'NO'}</strong>
+      </div>
+      {isManager ? (
       <form onSubmit={addProject} style={{ marginBottom:12 }}>
         <div style={{ display:'flex', gap:8, marginBottom:12, flexWrap:'wrap' }}>
           <input placeholder="Project name" value={name} onChange={e=>setName(e.target.value)} required style={{ padding:8, border:'1px solid #ddd', borderRadius:6, minWidth:200 }} />
@@ -606,6 +612,10 @@ export default function ProjectsPage({ user }) {
           </div>
         )}
       </form>
+      ) : (
+        <div style={{ padding:12, background:'#fff3cd', borderRadius:6, marginBottom:12, fontSize:13 }}>
+          You need manager access to create projects. Contact your administrator.
+        </div>
       )}
       {error && <div style={{ color:'crimson', marginBottom:8 }}>{error}</div>}
       <div style={{ background:'#fff', border:'1px solid #e6e6e6', borderRadius:8, overflow:'hidden' }}>
@@ -635,7 +645,7 @@ export default function ProjectsPage({ user }) {
               </tr>
             ))}
               {!projects.length && (
-                <tr><td colSpan={isManager ? 4 : 3} style={{ padding:12 }}>No projects yet. Add one above.</td></tr>
+                <tr><td colSpan={isManager ? 4 : 3} style={{ padding:12 }}>No projects yet. {isManager ? 'Add one above.' : 'Contact a manager to create projects.'}</td></tr>
             )}
           </tbody>
         </table>

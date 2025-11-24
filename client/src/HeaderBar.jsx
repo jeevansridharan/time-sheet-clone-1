@@ -7,7 +7,6 @@ export default function HeaderBar({ user, onLogout, rangeLabel, onPrev, onNext, 
         <div className="hb-range">{rangeLabel}</div>
         <div className="hb-controls">
           <button onClick={onPrev}>◀</button>
-          <button onClick={onToday}>Today</button>
           <button onClick={onNext}>▶</button>
         </div>
         <div className="hb-views">
