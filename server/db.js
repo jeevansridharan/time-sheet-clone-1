@@ -82,6 +82,14 @@ function addUser(user) {
   save();
 }
 
+function updateUser(id, patch) {
+  const idx = _db.users.findIndex(u => u.id === id);
+  if (idx === -1) return null;
+  _db.users[idx] = { ..._db.users[idx], ...patch, updatedAt: new Date().toISOString() };
+  save();
+  return _db.users[idx];
+}
+
 // Projects
 function getProjects() {
   return _db.projects || [];
@@ -182,6 +190,7 @@ module.exports = {
   findUserByPhone,
   findUserById,
   addUser,
+  updateUser,
   getEntries,
   findEntryById,
   addEntry,

@@ -13,6 +13,8 @@ export default function PeoplePage() {
   const [error, setError] = useState(null)
   const [form, setForm] = useState({ name: '', email: '', department: '', role: '' })
   const [saving, setSaving] = useState(false)
+  const [editingId, setEditingId] = useState(null)
+  const [editForm, setEditForm] = useState({ name: '', email: '', department: '', role: '' })
 
   useEffect(() => { load() }, [])
 
@@ -49,6 +51,33 @@ export default function PeoplePage() {
     } catch (err) { setError(err?.response?.data?.error || 'Delete failed') }
   }
 
+  function startEdit(person) {
+    setEditingId(person.id)
+    setEditForm({ 
+      name: person.name || '', 
+      email: person.email || '', 
+      department: person.department || '', 
+      role: person.role || '' 
+    })
+  }
+
+  function cancelEdit() {
+    setEditingId(null)
+    setEditForm({ name: '', email: '', department: '', role: '' })
+  }
+
+  async function saveEdit(id) {
+    try {
+      setSaving(true)
+      await axios.put(`/api/people/${id}`, editForm, { headers })
+      setEditingId(null)
+      setEditForm({ name: '', email: '', department: '', role: '' })
+      load()
+    } catch (err) {
+      setError(err?.response?.data?.error || 'Update failed')
+    } finally { setSaving(false) }
+  }
+
   if (loading) return <div>Loading people…</div>
 
   return (
@@ -78,19 +107,36 @@ export default function PeoplePage() {
               <th>Email</th>
               <th>Department</th>
               <th>Role</th>
-              <th style={{ width: 90 }}>Actions</th>
+              <th style={{ width: 150 }}>Actions</th>
             </tr>
           </thead>
           <tbody>
             {people.length ? people.map(p => (
-              <tr key={p.id}>
-                <td>{p.id ? p.id.slice(0,6).toUpperCase() : '—'}</td>
-                <td>{p.name || '—'}</td>
-                <td>{p.email || '—'}</td>
-                <td>{p.department || '—'}</td>
-                <td>{p.role || '—'}</td>
-                <td><button onClick={()=>remove(p.id)}>Remove</button></td>
-              </tr>
+              editingId === p.id ? (
+                <tr key={p.id}>
+                  <td>{p.id ? p.id.slice(0,6).toUpperCase() : '—'}</td>
+                  <td><input value={editForm.name} onChange={e=>setEditForm(f=>({...f, name: e.target.value}))} style={{width: '100%'}} /></td>
+                  <td><input value={editForm.email} onChange={e=>setEditForm(f=>({...f, email: e.target.value}))} style={{width: '100%'}} /></td>
+                  <td><input value={editForm.department} onChange={e=>setEditForm(f=>({...f, department: e.target.value}))} style={{width: '100%'}} /></td>
+                  <td><input value={editForm.role} onChange={e=>setEditForm(f=>({...f, role: e.target.value}))} style={{width: '100%'}} /></td>
+                  <td>
+                    <button onClick={()=>saveEdit(p.id)} disabled={saving} style={{marginRight: 4}}>Save</button>
+                    <button onClick={cancelEdit}>Cancel</button>
+                  </td>
+                </tr>
+              ) : (
+                <tr key={p.id}>
+                  <td>{p.id ? p.id.slice(0,6).toUpperCase() : '—'}</td>
+                  <td>{p.name || '—'}</td>
+                  <td>{p.email || '—'}</td>
+                  <td>{p.department || '—'}</td>
+                  <td>{p.role || '—'}</td>
+                  <td>
+                    <button onClick={()=>startEdit(p)} style={{marginRight: 4}}>Edit</button>
+                    <button onClick={()=>remove(p.id)}>Remove</button>
+                  </td>
+                </tr>
+              )
             )) : (
               <tr><td colSpan={6} style={{ textAlign: 'center', padding: 14 }}>No people yet.</td></tr>
             )}

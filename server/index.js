@@ -18,7 +18,13 @@ app.use(cors());
 // fall back to server/public.
 const clientDist = path.join(__dirname, '..', 'client', 'dist')
 if (fs.existsSync(clientDist)) {
-  app.use(express.static(clientDist))
+  app.use(express.static(clientDist, {
+    setHeaders: (res, path) => {
+      if (path.endsWith('.js') || path.endsWith('.css')) {
+        res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate')
+      }
+    }
+  }))
   // ensure SPA fallback to index.html for non-API routes only
   app.get(/^(?!\/api).*/, (req, res, next) => {
     const idx = path.join(clientDist, 'index.html')
@@ -170,6 +176,26 @@ function authMiddleware(req, res, next) {
 app.get('/me', authMiddleware, (req, res) => {
   const { password, ...publicUser } = req.user;
   res.json({ user: publicUser });
+});
+
+// Update profile
+app.patch('/me', authMiddleware, (req, res) => {
+  try {
+    const { name, phone, age, gender } = req.body || {};
+    const patch = {};
+    if (name !== undefined) patch.name = name ? String(name).trim() : null;
+    if (phone !== undefined) patch.phone = phone ? String(phone).trim() : null;
+    if (age !== undefined) patch.age = age ? Number(age) : null;
+    if (gender !== undefined) patch.gender = gender ? String(gender).trim() : null;
+    
+    const updated = db.updateUser(req.user.id, patch);
+    if (!updated) return res.status(404).json({ error: 'user not found' });
+    
+    const { password, ...publicUser } = updated;
+    res.json({ user: publicUser });
+  } catch (err) {
+    return res.status(500).json({ error: 'server error' });
+  }
 });
 
 app.get('/', (req, res) => res.send('tpodo timesheet server — auth endpoints: POST /register, POST /login, GET /me'));

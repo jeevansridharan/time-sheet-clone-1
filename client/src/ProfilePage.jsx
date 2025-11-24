@@ -3,7 +3,11 @@ import axios from 'axios'
 
 function useAuthHeaders() {
   const t = localStorage.getItem('tpodo_token') || sessionStorage.getItem('tpodo_token')
-  return t ? { Authorization: `Bearer ${t}` } : {}
+  if (!t) {
+    console.warn('No auth token found in localStorage or sessionStorage')
+    return {}
+  }
+  return { Authorization: `Bearer ${t}` }
 }
 
 export default function ProfilePage() {
@@ -12,7 +16,22 @@ export default function ProfilePage() {
   const [tasks, setTasks] = useState([])
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(true)
+  
+  // Check if user is authenticated
+  const hasToken = localStorage.getItem('tpodo_token') || sessionStorage.getItem('tpodo_token')
+  
+  if (!hasToken) {
+    return (
+      <div style={{ padding: 20 }}>
+        <h3>Authentication Required</h3>
+        <p>You need to be logged in to view your profile.</p>
+        <a href="#/" style={{ color: '#4f46e5', textDecoration: 'underline' }}>Go to Login</a>
+      </div>
+    )
+  }
   const [activeTab, setActiveTab] = useState('activities')
+  const [editing, setEditing] = useState(false)
+  const [editForm, setEditForm] = useState({ name: '', phone: '', age: '', gender: '' })
   const [isCheckedIn, setIsCheckedIn] = useState(() => {
     return !!localStorage.getItem('tpodo_checkin_at')
   })
@@ -30,17 +49,26 @@ export default function ProfilePage() {
     let mounted = true
     ;(async () => {
       try {
+        console.log('Fetching profile with headers:', headers)
         const [me, tr] = await Promise.all([
           axios.get('/me', { headers }),
           axios.get('/api/tasks', { headers })
         ])
         if (!mounted) return
+        console.log('Profile data received:', me.data)
         setUser(me.data.user)
+        setEditForm({
+          name: me.data.user.name || '',
+          phone: me.data.user.phone || '',
+          age: me.data.user.age != null ? String(me.data.user.age) : '',
+          gender: me.data.user.gender || ''
+        })
         setTasks(tr.data.tasks || [])
         setError(null)
       } catch (e) {
         if (!mounted) return
-        setError('Failed to load profile')
+        console.error('Profile load error:', e.response?.data || e.message)
+        setError(e.response?.data?.error || 'Failed to load profile')
       } finally { setLoading(false) }
     })()
     return () => { mounted = false }
@@ -145,8 +173,34 @@ export default function ProfilePage() {
     setElapsed('00:00:00')
   }
 
+  async function handleSaveProfile() {
+    try {
+      const payload = {
+        name: editForm.name || null,
+        phone: editForm.phone || null,
+        age: editForm.age ? Number(editForm.age) : null,
+        gender: editForm.gender || null
+      }
+      const res = await axios.patch('/me', payload, { headers })
+      setUser(res.data.user)
+      setEditing(false)
+      setError(null)
+    } catch (err) {
+      setError(err?.response?.data?.error || 'Failed to update profile')
+    }
+  }
+
   if (loading) return <div>Loading…</div>
-  if (error) return <div style={{ color:'crimson' }}>{error}</div>
+  if (error) return (
+    <div style={{ padding: 20 }}>
+      <div style={{ color:'crimson', marginBottom: 16 }}>{error}</div>
+      {error.includes('token') || error.includes('auth') ? (
+        <div>
+          <p>Your session may have expired. Please <a href="#/login">log in again</a>.</p>
+        </div>
+      ) : null}
+    </div>
+  )
 
   return (
     <div className="profile-page">
@@ -154,13 +208,58 @@ export default function ProfilePage() {
         <div className="profile-hero-content">
           <div className="profile-avatar">{initials(user?.name || user?.email)}</div>
           <div className="profile-meta">
-            <h2>{user?.name || 'Unnamed user'}</h2>
-            <p>{user?.email}</p>
-            <div className="profile-meta-grid">
-              <span><strong>Phone:</strong> {user?.phone || '—'}</span>
-              <span><strong>Age:</strong> {user?.age != null ? user.age : '—'}</span>
-              <span><strong>Gender:</strong> {user?.gender || '—'}</span>
-            </div>
+            {editing ? (
+              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                <input 
+                  value={editForm.name} 
+                  onChange={e => setEditForm(f => ({...f, name: e.target.value}))}
+                  placeholder="Name" 
+                  style={{ padding:6, fontSize:14 }}
+                />
+                <input 
+                  value={editForm.phone} 
+                  onChange={e => setEditForm(f => ({...f, phone: e.target.value}))}
+                  placeholder="Phone" 
+                  style={{ padding:6, fontSize:14 }}
+                />
+                <div style={{ display:'flex', gap:8 }}>
+                  <input 
+                    value={editForm.age} 
+                    onChange={e => setEditForm(f => ({...f, age: e.target.value}))}
+                    placeholder="Age" 
+                    type="number"
+                    style={{ padding:6, fontSize:14, flex:1 }}
+                  />
+                  <select 
+                    value={editForm.gender} 
+                    onChange={e => setEditForm(f => ({...f, gender: e.target.value}))}
+                    style={{ padding:6, fontSize:14, flex:1 }}
+                  >
+                    <option value="">Prefer not to say</option>
+                    <option value="Male">Male</option>
+                    <option value="Female">Female</option>
+                    <option value="Other">Other</option>
+                  </select>
+                </div>
+                <div style={{ display:'flex', gap:8, marginTop:4 }}>
+                  <button onClick={handleSaveProfile} style={{ padding:'6px 12px', fontSize:13 }}>Save</button>
+                  <button onClick={() => setEditing(false)} style={{ padding:'6px 12px', fontSize:13 }}>Cancel</button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div style={{ display:'flex', alignItems:'center', gap:12 }}>
+                  <h2>{user?.name || 'Unnamed user'}</h2>
+                  <button onClick={() => setEditing(true)} style={{ padding:'4px 10px', fontSize:12 }}>Edit Profile</button>
+                </div>
+                <p>{user?.email}</p>
+                <div className="profile-meta-grid">
+                  <span><strong>Phone:</strong> {user?.phone || '—'}</span>
+                  <span><strong>Age:</strong> {user?.age != null ? user.age : '—'}</span>
+                  <span><strong>Gender:</strong> {user?.gender || '—'}</span>
+                </div>
+              </>
+            )}
           </div>
         </div>
         <div className="profile-tabs">

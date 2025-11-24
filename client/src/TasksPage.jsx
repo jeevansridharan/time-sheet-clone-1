@@ -64,6 +64,8 @@ export default function TasksPage() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const [selected, setSelected] = useState('')
+  const [editingId, setEditingId] = useState(null)
+  const [editForm, setEditForm] = useState({})
 
   function authHeaders() {
     const t = localStorage.getItem('tpodo_token') || sessionStorage.getItem('tpodo_token')
@@ -153,6 +155,62 @@ export default function TasksPage() {
   const projMap = useMemo(() => Object.fromEntries(projects.map(p => [p.id, p.name])), [projects])
   const teamMap = useMemo(() => Object.fromEntries(teamsWithMembers.map(t => [t.id, t.name])), [teamsWithMembers])
 
+  function startEdit(task) {
+    setEditingId(task.id)
+    setEditForm({
+      title: task.title,
+      projectId: task.projectId || '',
+      teamId: task.teamId || '',
+      assigneeId: task.assignedTo?.memberId || ''
+    })
+  }
+
+  function cancelEdit() {
+    setEditingId(null)
+    setEditForm({})
+  }
+
+  async function saveEdit(taskId) {
+    try {
+      const team = teamsWithMembers.find(t => t.id === editForm.teamId)
+      const member = team?.members.find(m => m.id === editForm.assigneeId)
+      const assignedPayload = member
+        ? {
+            memberId: member.id,
+            teamId: team?.id || null,
+            name: member.name || member.username || member.email || '',
+            username: member.username || null,
+            email: member.email || null,
+            role: member.role || null,
+            age: member.age != null ? member.age : null,
+            yearJoined: member.yearJoined != null ? member.yearJoined : null,
+            subTask: member.subTask ? member.subTask : null
+          }
+        : null
+      await axios.patch(
+        `/api/tasks/${taskId}`,
+        {
+          title: editForm.title,
+          projectId: editForm.projectId || null,
+          teamId: editForm.teamId || null,
+          assignedTo: assignedPayload
+        },
+        { headers: authHeaders() }
+      )
+      setEditingId(null)
+      setEditForm({})
+      await load()
+    } catch (e) {
+      setError(e?.response?.data?.error || 'Update failed')
+    }
+  }
+
+  const editTeamMembers = useMemo(() => {
+    if (!editForm.teamId) return []
+    const team = teamsWithMembers.find(t => t.id === editForm.teamId)
+    return team ? team.members : []
+  }, [teamsWithMembers, editForm.teamId])
+
   return (
     <div>
       <h3 style={{ margin:'8px 0' }}>Tasks</h3>
@@ -201,25 +259,85 @@ export default function TasksPage() {
             </tr>
           </thead>
           <tbody>
-            {tasks.map(t => (
-              <tr key={t.id} style={{ background: selected===t.id ? '#f7f7ff' : 'transparent' }}>
-                <td style={{ padding:8, borderBottom:'1px solid #f1f1f1' }} onClick={()=>setSelected(t.id)}>{t.title}</td>
-                <td style={{ padding:8, borderBottom:'1px solid #f1f1f1' }} onClick={()=>setSelected(t.id)}>{t.projectId ? (projMap[t.projectId] || t.projectId) : '—'}</td>
-                <td style={{ padding:8, borderBottom:'1px solid #f1f1f1' }} onClick={()=>setSelected(t.id)}>{t.teamId ? (teamMap[t.teamId] || t.teamId) : '—'}</td>
-                <td style={{ padding:8, borderBottom:'1px solid #f1f1f1' }} onClick={()=>setSelected(t.id)}>{renderAssignee(t.assignedTo)}</td>
-                <td style={{ padding:8, borderBottom:'1px solid #f1f1f1' }}>
-                  <label style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
-                    <input type="checkbox" checked={(t.status||'open')==='completed'} onChange={async (e)=>{
-                      try {
-                        await axios.patch(`/api/tasks/${t.id}`, { status: e.target.checked ? 'completed' : 'open' }, { headers: authHeaders() })
-                        await load()
-                      } catch {}
-                    }} />
-                    <span>{(t.status||'open')==='completed' ? 'Completed' : 'Open'}</span>
-                  </label>
-                </td>
-              </tr>
-            ))}
+            {tasks.map(t => {
+              if (editingId === t.id) {
+                return (
+                  <tr key={t.id} style={{ background: '#fffbeb' }}>
+                    <td style={{ padding:8, borderBottom:'1px solid #f1f1f1' }}>
+                      <input 
+                        value={editForm.title} 
+                        onChange={e=>setEditForm({...editForm, title: e.target.value})}
+                        style={{ width:'100%', padding:4, border:'1px solid #ddd', borderRadius:4 }}
+                      />
+                    </td>
+                    <td style={{ padding:8, borderBottom:'1px solid #f1f1f1' }}>
+                      <select 
+                        value={editForm.projectId} 
+                        onChange={e=>setEditForm({...editForm, projectId: e.target.value})}
+                        style={{ width:'100%', padding:4, border:'1px solid #ddd', borderRadius:4 }}
+                      >
+                        <option value="">No project</option>
+                        {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
+                      </select>
+                    </td>
+                    <td style={{ padding:8, borderBottom:'1px solid #f1f1f1' }}>
+                      <select 
+                        value={editForm.teamId} 
+                        onChange={e=>setEditForm({...editForm, teamId: e.target.value, assigneeId: ''})}
+                        style={{ width:'100%', padding:4, border:'1px solid #ddd', borderRadius:4 }}
+                      >
+                        <option value="">No team</option>
+                        {teamsWithMembers.map(team => <option key={team.id} value={team.id}>{team.name}</option>)}
+                      </select>
+                    </td>
+                    <td style={{ padding:8, borderBottom:'1px solid #f1f1f1' }}>
+                      <select 
+                        value={editForm.assigneeId} 
+                        onChange={e=>setEditForm({...editForm, assigneeId: e.target.value})}
+                        disabled={!editForm.teamId || !editTeamMembers.length}
+                        style={{ width:'100%', padding:4, border:'1px solid #ddd', borderRadius:4 }}
+                      >
+                        <option value="">Unassigned</option>
+                        {editTeamMembers.map(member => (
+                          <option key={member.id} value={member.id}>
+                            {member.name || member.username || member.email || 'Member'}
+                            {member.role ? ` • ${member.role}` : ''}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td style={{ padding:8, borderBottom:'1px solid #f1f1f1' }}>
+                      <div style={{ display:'flex', gap:4 }}>
+                        <button onClick={() => saveEdit(t.id)} style={{ padding:'4px 8px', fontSize:12 }}>Save</button>
+                        <button onClick={cancelEdit} style={{ padding:'4px 8px', fontSize:12 }}>Cancel</button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              }
+              return (
+                <tr key={t.id} style={{ background: selected===t.id ? '#f7f7ff' : 'transparent' }}>
+                  <td style={{ padding:8, borderBottom:'1px solid #f1f1f1' }} onClick={()=>setSelected(t.id)}>{t.title}</td>
+                  <td style={{ padding:8, borderBottom:'1px solid #f1f1f1' }} onClick={()=>setSelected(t.id)}>{t.projectId ? (projMap[t.projectId] || t.projectId) : '—'}</td>
+                  <td style={{ padding:8, borderBottom:'1px solid #f1f1f1' }} onClick={()=>setSelected(t.id)}>{t.teamId ? (teamMap[t.teamId] || t.teamId) : '—'}</td>
+                  <td style={{ padding:8, borderBottom:'1px solid #f1f1f1' }} onClick={()=>setSelected(t.id)}>{renderAssignee(t.assignedTo)}</td>
+                  <td style={{ padding:8, borderBottom:'1px solid #f1f1f1' }}>
+                    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
+                      <label style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+                        <input type="checkbox" checked={(t.status||'open')==='completed'} onChange={async (e)=>{
+                          try {
+                            await axios.patch(`/api/tasks/${t.id}`, { status: e.target.checked ? 'completed' : 'open' }, { headers: authHeaders() })
+                            await load()
+                          } catch {}
+                        }} />
+                        <span>{(t.status||'open')==='completed' ? 'Completed' : 'Open'}</span>
+                      </label>
+                      <button onClick={() => startEdit(t)} style={{ padding:'4px 8px', fontSize:11, marginLeft:'auto' }}>Edit</button>
+                    </div>
+                  </td>
+                </tr>
+              )
+            })}
             {!tasks.length && (
               <tr><td colSpan={5} style={{ padding:12 }}>No tasks yet. Add one above.</td></tr>
             )}
