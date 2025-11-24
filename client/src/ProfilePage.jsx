@@ -16,19 +16,6 @@ export default function ProfilePage() {
   const [tasks, setTasks] = useState([])
   const [error, setError] = useState(null)
   const [loading, setLoading] = useState(true)
-  
-  // Check if user is authenticated
-  const hasToken = localStorage.getItem('tpodo_token') || sessionStorage.getItem('tpodo_token')
-  
-  if (!hasToken) {
-    return (
-      <div style={{ padding: 20 }}>
-        <h3>Authentication Required</h3>
-        <p>You need to be logged in to view your profile.</p>
-        <a href="#/" style={{ color: '#4f46e5', textDecoration: 'underline' }}>Go to Login</a>
-      </div>
-    )
-  }
   const [activeTab, setActiveTab] = useState('activities')
   const [editing, setEditing] = useState(false)
   const [editForm, setEditForm] = useState({ name: '', phone: '', age: '', gender: '' })
@@ -188,6 +175,19 @@ export default function ProfilePage() {
     } catch (err) {
       setError(err?.response?.data?.error || 'Failed to update profile')
     }
+  }
+
+  // Check if user is authenticated
+  const hasToken = localStorage.getItem('tpodo_token') || sessionStorage.getItem('tpodo_token')
+  
+  if (!hasToken) {
+    return (
+      <div style={{ padding: 20 }}>
+        <h3>Authentication Required</h3>
+        <p>You need to be logged in to view your profile.</p>
+        <a href="#/" style={{ color: '#4f46e5', textDecoration: 'underline' }}>Go to Login</a>
+      </div>
+    )
   }
 
   if (loading) return <div>Loading…</div>

@@ -14,6 +14,9 @@ import TasksPage from './TasksPage'
 import ReportsPage from './ReportsPage'
 import WorkflowBoard from './WorkflowBoard'
 import PeoplePage from './PeoplePage'
+import ProfilePage from './ProfilePage'
+import NameMePage from './NameMePage'
+import GroupPage from './GroupPage'
 
 // Dashboard replicates layout similar to reference screenshot: sidebar, header, content tabs.
 
@@ -81,6 +84,9 @@ export default function Dashboard({ user, onLogout }) {
     if (route === 'tasks') return <TasksPage user={user} />
     if (route === 'reports') return <ReportsPage />
     if (route === 'workflow') return <WorkflowBoard />
+    if (route === 'profile') return <ProfilePage />
+    if (route === 'nameme') return <NameMePage />
+    if (route === 'group') return <GroupPage />
     return null
   }
 

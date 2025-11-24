@@ -13,17 +13,18 @@ const NAV_GROUPS = [
     items: [
       { key: 'projects', label: 'Projects' },
       { key: 'tasks', label: 'Tasks' },
-      { key: 'people', label: 'People' }
+      { key: 'people', label: 'People' },
+      { key: 'group', label: 'Group' }
     ]
   },
   {
     title: 'Reports',
     items: [
       { key: 'reports', label: 'Reports' },
-      { key: 'workflow', label: 'Workflow' }
+      { key: 'workflow', label: 'Workflow' },
+      { key: 'nameme', label: 'Me' }
     ]
-  },
-
+  }
 ]
 
 export default function Sidebar({ route }) {

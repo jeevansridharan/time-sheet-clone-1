@@ -60,6 +60,17 @@ export default function ProjectsPage({ user }) {
   async function addProject(e) {
     e.preventDefault()
     setError(null)
+    
+    // Validate deadline is not in the past
+    if (deadline) {
+      const selectedDate = new Date(deadline)
+      const now = new Date()
+      if (selectedDate < now) {
+        setError('Deadline cannot be in the past. Please select a future date.')
+        return
+      }
+    }
+    
     setSaving(true)
     try {
       const projectRes = await axios.post('/api/projects', { name, description, deadline: deadline || null }, { headers: authHeaders() })
@@ -112,6 +123,17 @@ export default function ProjectsPage({ user }) {
   async function updateProject(e) {
     e.preventDefault()
     setError(null)
+    
+    // Validate deadline is not in the past
+    if (editForm.deadline) {
+      const selectedDate = new Date(editForm.deadline)
+      const now = new Date()
+      if (selectedDate < now) {
+        setError('Deadline cannot be in the past. Please select a future date.')
+        return
+      }
+    }
+    
     setSaving(true)
     try {
       await axios.patch(`/api/projects/${editingProject.id}`, {
@@ -591,7 +613,7 @@ export default function ProjectsPage({ user }) {
         <div style={{ display:'flex', gap:8, marginBottom:12, flexWrap:'wrap' }}>
           <input placeholder="Project name" value={name} onChange={e=>setName(e.target.value)} required style={{ padding:8, border:'1px solid #ddd', borderRadius:6, minWidth:200 }} />
           <input placeholder="Description (optional)" value={description} onChange={e=>setDescription(e.target.value)} style={{ flex:1, padding:8, border:'1px solid #ddd', borderRadius:6 }} />
-          <input type="datetime-local" placeholder="Deadline" value={deadline} onChange={e=>setDeadline(e.target.value)} style={{ padding:8, border:'1px solid #ddd', borderRadius:6, minWidth:180 }} />
+          <input type="datetime-local" placeholder="Deadline" value={deadline} onChange={e=>setDeadline(e.target.value)} min={new Date().toISOString().slice(0, 16)} style={{ padding:8, border:'1px solid #ddd', borderRadius:6, minWidth:180 }} />
           <button type="submit" disabled={saving} style={{ padding:'8px 12px' }}>{saving ? 'Adding…' : 'Add Project'}</button>
         </div>
         {teams.length > 0 && (
@@ -679,6 +701,7 @@ export default function ProjectsPage({ user }) {
                   type="datetime-local" 
                   value={editForm.deadline} 
                   onChange={e => setEditForm({...editForm, deadline: e.target.value})} 
+                  min={new Date().toISOString().slice(0, 16)}
                   style={{ width:'100%', padding:8, border:'1px solid #ddd', borderRadius:6 }} 
                 />
               </div>
