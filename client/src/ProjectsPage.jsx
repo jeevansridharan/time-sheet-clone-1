@@ -2,10 +2,11 @@ import React, { useEffect, useState } from 'react'
 import axios from 'axios'
 import TaskDetails from './TaskDetails'
 
-export default function ProjectsPage() {
+export default function ProjectsPage({ user }) {
   const [projects, setProjects] = useState([])
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
+  const [deadline, setDeadline] = useState('')
   const [selectedTeams, setSelectedTeams] = useState([])
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
@@ -24,6 +25,10 @@ export default function ProjectsPage() {
   const [newMemberRole, setNewMemberRole] = useState('member')
   const [addingMember, setAddingMember] = useState(false)
   const [projectMembers, setProjectMembers] = useState([])
+  const [editingProject, setEditingProject] = useState(null)
+  const [editForm, setEditForm] = useState({ name: '', description: '', deadline: '' })
+
+  const isManager = user?.role === 'manager'
 
   function authHeaders() {
     const t = localStorage.getItem('tpodo_token') || sessionStorage.getItem('tpodo_token')
@@ -56,7 +61,7 @@ export default function ProjectsPage() {
     setError(null)
     setSaving(true)
     try {
-      const projectRes = await axios.post('/api/projects', { name, description }, { headers: authHeaders() })
+      const projectRes = await axios.post('/api/projects', { name, description, deadline: deadline || null }, { headers: authHeaders() })
       const newProjectId = projectRes.data.project?.id
       
       // Create tasks for each selected team to link them to the project
@@ -73,6 +78,7 @@ export default function ProjectsPage() {
       
       setName('')
       setDescription('')
+      setDeadline('')
       setSelectedTeams([])
       await load()
     } catch (e) {
@@ -86,6 +92,49 @@ export default function ProjectsPage() {
         ? prev.filter(id => id !== teamId)
         : [...prev, teamId]
     )
+  }
+
+  function openEditForm(project) {
+    setEditingProject(project)
+    setEditForm({
+      name: project.name || '',
+      description: project.description || '',
+      deadline: project.deadline ? new Date(project.deadline).toISOString().slice(0, 16) : ''
+    })
+  }
+
+  function closeEditForm() {
+    setEditingProject(null)
+    setEditForm({ name: '', description: '', deadline: '' })
+  }
+
+  async function updateProject(e) {
+    e.preventDefault()
+    setError(null)
+    setSaving(true)
+    try {
+      await axios.patch(`/api/projects/${editingProject.id}`, {
+        name: editForm.name,
+        description: editForm.description,
+        deadline: editForm.deadline || null
+      }, { headers: authHeaders() })
+      closeEditForm()
+      await load()
+    } catch (err) {
+      setError(err?.response?.data?.error || 'Update failed')
+    } finally { setSaving(false) }
+  }
+
+  async function deleteProject(projectId) {
+    if (!window.confirm('Are you sure you want to delete this project?')) return
+    setError(null)
+    setSaving(true)
+    try {
+      await axios.delete(`/api/projects/${projectId}`, { headers: authHeaders() })
+      await load()
+    } catch (err) {
+      setError(err?.response?.data?.error || 'Delete failed')
+    } finally { setSaving(false) }
   }
 
   async function addTaskToProject(e) {
@@ -531,10 +580,12 @@ export default function ProjectsPage() {
   return (
     <div>
       <h3 style={{ margin:'8px 0' }}>Projects</h3>
+      {isManager && (
       <form onSubmit={addProject} style={{ marginBottom:12 }}>
         <div style={{ display:'flex', gap:8, marginBottom:12, flexWrap:'wrap' }}>
           <input placeholder="Project name" value={name} onChange={e=>setName(e.target.value)} required style={{ padding:8, border:'1px solid #ddd', borderRadius:6, minWidth:200 }} />
           <input placeholder="Description (optional)" value={description} onChange={e=>setDescription(e.target.value)} style={{ flex:1, padding:8, border:'1px solid #ddd', borderRadius:6 }} />
+          <input type="datetime-local" placeholder="Deadline" value={deadline} onChange={e=>setDeadline(e.target.value)} style={{ padding:8, border:'1px solid #ddd', borderRadius:6, minWidth:180 }} />
           <button type="submit" disabled={saving} style={{ padding:'8px 12px' }}>{saving ? 'Adding…' : 'Add Project'}</button>
         </div>
         {teams.length > 0 && (
@@ -555,6 +606,7 @@ export default function ProjectsPage() {
           </div>
         )}
       </form>
+      )}
       {error && <div style={{ color:'crimson', marginBottom:8 }}>{error}</div>}
       <div style={{ background:'#fff', border:'1px solid #e6e6e6', borderRadius:8, overflow:'hidden' }}>
         <table style={{ width:'100%', borderCollapse:'collapse', fontSize:13 }}>
@@ -562,21 +614,75 @@ export default function ProjectsPage() {
             <tr style={{ background:'#fafafa' }}>
               <th style={{ textAlign:'left', padding:8, borderBottom:'1px solid #eee' }}>Name</th>
               <th style={{ textAlign:'left', padding:8, borderBottom:'1px solid #eee' }}>Description</th>
+              <th style={{ textAlign:'left', padding:8, borderBottom:'1px solid #eee' }}>Deadline</th>
+              {isManager && <th style={{ textAlign:'center', padding:8, borderBottom:'1px solid #eee', width:120 }}>Actions</th>}
             </tr>
           </thead>
           <tbody>
             {projects.map(p => (
-              <tr key={p.id} onClick={() => setSelectedProject(p)} style={{ cursor:'pointer' }}>
-                <td style={{ padding:8, borderBottom:'1px solid #f1f1f1' }}>{p.name}</td>
-                <td style={{ padding:8, borderBottom:'1px solid #f1f1f1' }}>{p.description || '—'}</td>
+              <tr key={p.id}>
+                <td style={{ padding:8, borderBottom:'1px solid #f1f1f1', cursor:'pointer' }} onClick={() => setSelectedProject(p)}>{p.name}</td>
+                <td style={{ padding:8, borderBottom:'1px solid #f1f1f1', cursor:'pointer' }} onClick={() => setSelectedProject(p)}>{p.description || '—'}</td>
+                <td style={{ padding:8, borderBottom:'1px solid #f1f1f1', cursor:'pointer' }} onClick={() => setSelectedProject(p)}>
+                  {p.deadline ? new Date(p.deadline).toLocaleString() : '—'}
+                </td>
+                {isManager && (
+                  <td style={{ padding:8, borderBottom:'1px solid #f1f1f1', textAlign:'center' }}>
+                    <button onClick={(e) => { e.stopPropagation(); openEditForm(p); }} style={{ padding:'4px 8px', marginRight:4, fontSize:12 }}>Edit</button>
+                    <button onClick={(e) => { e.stopPropagation(); deleteProject(p.id); }} style={{ padding:'4px 8px', fontSize:12, background:'#dc2626', color:'white', border:'none', borderRadius:4, cursor:'pointer' }}>Delete</button>
+                  </td>
+                )}
               </tr>
             ))}
               {!projects.length && (
-                <tr><td colSpan={2} style={{ padding:12 }}>No projects yet. Add one above.</td></tr>
+                <tr><td colSpan={isManager ? 4 : 3} style={{ padding:12 }}>No projects yet. Add one above.</td></tr>
             )}
           </tbody>
         </table>
       </div>
+
+      {editingProject && (
+        <div style={{ position:'fixed', top:0, left:0, right:0, bottom:0, background:'rgba(0,0,0,0.5)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:1000 }}>
+          <div style={{ background:'white', padding:24, borderRadius:8, minWidth:400, maxWidth:600 }}>
+            <h3 style={{ margin:'0 0 16px 0' }}>Edit Project</h3>
+            <form onSubmit={updateProject}>
+              <div style={{ marginBottom:12 }}>
+                <label style={{ display:'block', fontSize:13, marginBottom:4 }}>Project Name</label>
+                <input 
+                  value={editForm.name} 
+                  onChange={e => setEditForm({...editForm, name: e.target.value})} 
+                  required 
+                  style={{ width:'100%', padding:8, border:'1px solid #ddd', borderRadius:6 }} 
+                />
+              </div>
+              <div style={{ marginBottom:12 }}>
+                <label style={{ display:'block', fontSize:13, marginBottom:4 }}>Description</label>
+                <input 
+                  value={editForm.description} 
+                  onChange={e => setEditForm({...editForm, description: e.target.value})} 
+                  style={{ width:'100%', padding:8, border:'1px solid #ddd', borderRadius:6 }} 
+                />
+              </div>
+              <div style={{ marginBottom:12 }}>
+                <label style={{ display:'block', fontSize:13, marginBottom:4 }}>Deadline</label>
+                <input 
+                  type="datetime-local" 
+                  value={editForm.deadline} 
+                  onChange={e => setEditForm({...editForm, deadline: e.target.value})} 
+                  style={{ width:'100%', padding:8, border:'1px solid #ddd', borderRadius:6 }} 
+                />
+              </div>
+              {error && <div style={{ color:'crimson', marginBottom:12 }}>{error}</div>}
+              <div style={{ display:'flex', gap:8, justifyContent:'flex-end' }}>
+                <button type="button" onClick={closeEditForm} style={{ padding:'8px 16px' }}>Cancel</button>
+                <button type="submit" disabled={saving} style={{ padding:'8px 16px', background:'#4f46e5', color:'white', border:'none', borderRadius:6, cursor:'pointer' }}>
+                  {saving ? 'Saving…' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -78,10 +78,10 @@ export default function Dashboard({ user, onLogout }) {
       )
     }
     if (route === 'times') return <TimesList refreshKey={refreshKey} />
-  if (route === 'projects') return <ProjectsPage />
-  if (route === 'teams') return <TeamsPage />
-    if (route === 'people') return <PeoplePage />
-    if (route === 'tasks') return <TasksPage />
+  if (route === 'projects') return <ProjectsPage user={user} />
+  if (route === 'teams') return <TeamsPage user={user} />
+    if (route === 'people') return <PeoplePage user={user} />
+    if (route === 'tasks') return <TasksPage user={user} />
     if (route === 'reports') return <ReportsPage />
     if (route === 'workflow') return <WorkflowBoard />
     if (route === 'profile') return <ProfilePage />

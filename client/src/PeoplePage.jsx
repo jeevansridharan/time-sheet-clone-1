@@ -6,7 +6,8 @@ function useAuthHeaders() {
   return t ? { Authorization: `Bearer ${t}` } : {}
 }
 
-export default function PeoplePage() {
+export default function PeoplePage({ user }) {
+  const isManager = user?.role === 'manager'
   const headers = useAuthHeaders()
   const [people, setPeople] = useState([])
   const [loading, setLoading] = useState(true)
@@ -87,6 +88,7 @@ export default function PeoplePage() {
         <div style={{ color: 'crimson' }}>{error}</div>
       </div>
 
+      {isManager && (
       <div style={{ marginBottom: 12 }}>
         <strong>Add person</strong>
         <div style={{ display: 'flex', gap: 8, marginTop: 8 }}>
@@ -97,6 +99,7 @@ export default function PeoplePage() {
           <button onClick={save} disabled={saving}>{saving ? 'Saving…' : 'Add'}</button>
         </div>
       </div>
+      )}
 
       <div className="people-table-wrapper">
         <table className="teams-table">
@@ -107,7 +110,7 @@ export default function PeoplePage() {
               <th>Email</th>
               <th>Department</th>
               <th>Role</th>
-              <th style={{ width: 150 }}>Actions</th>
+              {isManager && <th style={{ width: 150 }}>Actions</th>}
             </tr>
           </thead>
           <tbody>
@@ -131,14 +134,16 @@ export default function PeoplePage() {
                   <td>{p.email || '—'}</td>
                   <td>{p.department || '—'}</td>
                   <td>{p.role || '—'}</td>
+                  {isManager && (
                   <td>
                     <button onClick={()=>startEdit(p)} style={{marginRight: 4}}>Edit</button>
                     <button onClick={()=>remove(p.id)}>Remove</button>
                   </td>
+                  )}
                 </tr>
               )
             )) : (
-              <tr><td colSpan={6} style={{ textAlign: 'center', padding: 14 }}>No people yet.</td></tr>
+              <tr><td colSpan={isManager ? 6 : 5} style={{ textAlign: 'center', padding: 14 }}>No people yet.</td></tr>
             )}
           </tbody>
         </table>

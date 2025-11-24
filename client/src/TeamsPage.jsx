@@ -100,7 +100,8 @@ function visibilityLabel(value) {
   }
 }
 
-export default function TeamsPage() {
+export default function TeamsPage({ user }) {
+  const isManager = user?.role === 'manager'
   const headers = useAuthHeaders()
   const [teams, setTeams] = useState([])
   const [tasks, setTasks] = useState([])
@@ -384,7 +385,7 @@ export default function TeamsPage() {
           <h3 style={{ margin: 0 }}>Teams</h3>
           {error && <div style={{ color: 'crimson', marginTop: 6 }}>{error}</div>}
         </div>
-        <button className="teams-primary" onClick={openCreateForm}>+ New Team</button>
+        {isManager && <button className="teams-primary" onClick={openCreateForm}>+ New Team</button>}
       </div>
 
       <div className="teams-table-wrapper">
@@ -396,7 +397,7 @@ export default function TeamsPage() {
               <th>Visibility</th>
               <th>Projects</th>
               <th>Employees</th>
-              <th style={{ width: 120 }}>Actions</th>
+              {isManager && <th style={{ width: 120 }}>Actions</th>}
             </tr>
           </thead>
           <tbody>
@@ -422,6 +423,7 @@ export default function TeamsPage() {
                       return `${names.slice(0,2).join(', ')} (+${names.length - 2})`
                     })()}
                   </td>
+                  {isManager && (
                   <td>
                     <div className="teams-actions">
                       <button onClick={() => openEditForm(team)}>Edit</button>
@@ -430,6 +432,7 @@ export default function TeamsPage() {
                       </button>
                     </div>
                   </td>
+                  )}
                 </tr>
               )
             })}

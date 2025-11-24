@@ -8,6 +8,8 @@ export default function Register({ onLogin }) {
   const [phone, setPhone] = useState('')
   const [age, setAge] = useState('')
   const [gender, setGender] = useState('')
+  const [role, setRole] = useState('employee')
+  const [managerPassword, setManagerPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState(null)
   const [success, setSuccess] = useState(null)
@@ -18,9 +20,9 @@ export default function Register({ onLogin }) {
     setSuccess(null)
     setLoading(true)
     try {
-      await axios.post('/register', { name, email, password, phone: phone || null, age: age ? Number(age) : null, gender: gender || null })
+      await axios.post('/register', { name, email, password, phone: phone || null, age: age ? Number(age) : null, gender: gender || null, role: role || 'employee', managerPassword: role === 'manager' ? managerPassword : undefined })
       // auto-login
-      const res = await axios.post('/login', { email, password })
+      const res = await axios.post('/login', { email, password, role, managerPassword: role === 'manager' ? managerPassword : undefined })
       if (res.data?.token) {
         localStorage.setItem('tpodo_token', res.data.token)
         onLogin && onLogin(res.data.token, res.data.user)
@@ -52,6 +54,26 @@ export default function Register({ onLogin }) {
           <label style={{ display:'block', fontSize: 13, marginBottom: 4 }}>Phone</label>
           <input value={phone} onChange={e=>setPhone(e.target.value)} type="tel" placeholder="e.g., 9876543210" style={{ width:'100%', padding:8 }} />
         </div>
+        <div style={{ marginBottom: 8 }}>
+          <label style={{ display:'block', fontSize: 13, marginBottom: 4 }}>Role</label>
+          <select value={role} onChange={e=>setRole(e.target.value)} required style={{ width:'100%', padding:8 }}>
+            <option value="employee">Employee</option>
+            <option value="manager">Manager</option>
+          </select>
+        </div>
+        {role === 'manager' && (
+          <div style={{ marginBottom: 8 }}>
+            <label style={{ display: 'block', fontSize: 13, marginBottom: 4 }}>Manager Access Code</label>
+            <input 
+              value={managerPassword} 
+              onChange={e => setManagerPassword(e.target.value)} 
+              type="password" 
+              placeholder="Enter manager access code"
+              required 
+              style={{ width: '100%', padding: 8 }} 
+            />
+          </div>
+        )}
         <div style={{ display:'flex', gap:12, flexWrap:'wrap' }}>
           <div style={{ flex:'1 1 160px' }}>
             <label style={{ display:'block', fontSize: 13, marginBottom: 4 }}>Age</label>

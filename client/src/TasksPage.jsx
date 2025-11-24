@@ -53,7 +53,7 @@ function renderAssignee(value) {
   return detailParts.length ? `${name} (${detailParts.join(' · ')})` : name
 }
 
-export default function TasksPage() {
+export default function TasksPage({ user }) {
   const [tasks, setTasks] = useState([])
   const [projects, setProjects] = useState([])
   const [teams, setTeams] = useState([])
@@ -66,6 +66,8 @@ export default function TasksPage() {
   const [selected, setSelected] = useState('')
   const [editingId, setEditingId] = useState(null)
   const [editForm, setEditForm] = useState({})
+  
+  const isManager = user?.role === 'manager'
 
   function authHeaders() {
     const t = localStorage.getItem('tpodo_token') || sessionStorage.getItem('tpodo_token')
@@ -205,6 +207,16 @@ export default function TasksPage() {
     }
   }
 
+  async function deleteTask(taskId) {
+    if (!window.confirm('Are you sure you want to delete this task?')) return
+    try {
+      await axios.delete(`/api/tasks/${taskId}`, { headers: authHeaders() })
+      await load()
+    } catch (e) {
+      setError(e?.response?.data?.error || 'Delete failed')
+    }
+  }
+
   const editTeamMembers = useMemo(() => {
     if (!editForm.teamId) return []
     const team = teamsWithMembers.find(t => t.id === editForm.teamId)
@@ -214,6 +226,7 @@ export default function TasksPage() {
   return (
     <div>
       <h3 style={{ margin:'8px 0' }}>Tasks</h3>
+      {isManager && (
       <form onSubmit={addTask} style={{ display:'flex', gap:8, marginBottom:12, flexWrap:'wrap' }}>
         <input placeholder="Task title" value={title} onChange={e=>setTitle(e.target.value)} required style={{ padding:8, border:'1px solid #ddd', borderRadius:6 }} />
         <select value={projectId} onChange={e=>setProjectId(e.target.value)} style={{ padding:8, border:'1px solid #ddd', borderRadius:6 }}>
@@ -241,7 +254,8 @@ export default function TasksPage() {
         </select>
         <button type="submit" disabled={saving} style={{ padding:'8px 12px' }}>{saving ? 'Adding…' : 'Add Task'}</button>
       </form>
-      {teamId && !selectedTeamMembers.length && (
+      )}
+      {isManager && teamId && !selectedTeamMembers.length && (
         <div style={{ fontSize:12, color:'#6b7280', marginBottom:8 }}>
           No employees found for this team. Add them from the Teams page to assign owners.
         </div>
@@ -256,6 +270,7 @@ export default function TasksPage() {
               <th style={{ textAlign:'left', padding:8, borderBottom:'1px solid #eee' }}>Team</th>
               <th style={{ textAlign:'left', padding:8, borderBottom:'1px solid #eee' }}>Assigned</th>
               <th style={{ textAlign:'left', padding:8, borderBottom:'1px solid #eee' }}>Status</th>
+              {isManager && <th style={{ textAlign:'center', padding:8, borderBottom:'1px solid #eee', width:120 }}>Actions</th>}
             </tr>
           </thead>
           <tbody>
@@ -322,24 +337,27 @@ export default function TasksPage() {
                   <td style={{ padding:8, borderBottom:'1px solid #f1f1f1' }} onClick={()=>setSelected(t.id)}>{t.teamId ? (teamMap[t.teamId] || t.teamId) : '—'}</td>
                   <td style={{ padding:8, borderBottom:'1px solid #f1f1f1' }} onClick={()=>setSelected(t.id)}>{renderAssignee(t.assignedTo)}</td>
                   <td style={{ padding:8, borderBottom:'1px solid #f1f1f1' }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:8 }}>
-                      <label style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
-                        <input type="checkbox" checked={(t.status||'open')==='completed'} onChange={async (e)=>{
-                          try {
-                            await axios.patch(`/api/tasks/${t.id}`, { status: e.target.checked ? 'completed' : 'open' }, { headers: authHeaders() })
-                            await load()
-                          } catch {}
-                        }} />
-                        <span>{(t.status||'open')==='completed' ? 'Completed' : 'Open'}</span>
-                      </label>
-                      <button onClick={() => startEdit(t)} style={{ padding:'4px 8px', fontSize:11, marginLeft:'auto' }}>Edit</button>
-                    </div>
+                    <label style={{ display:'inline-flex', alignItems:'center', gap:6 }}>
+                      <input type="checkbox" checked={(t.status||'open')==='completed'} onChange={async (e)=>{
+                        try {
+                          await axios.patch(`/api/tasks/${t.id}`, { status: e.target.checked ? 'completed' : 'open' }, { headers: authHeaders() })
+                          await load()
+                        } catch {}
+                      }} />
+                      <span>{(t.status||'open')==='completed' ? 'Completed' : 'Open'}</span>
+                    </label>
                   </td>
+                  {isManager && (
+                    <td style={{ padding:8, borderBottom:'1px solid #f1f1f1', textAlign:'center' }}>
+                      <button onClick={() => startEdit(t)} style={{ padding:'4px 8px', marginRight:4, fontSize:12 }}>Edit</button>
+                      <button onClick={() => deleteTask(t.id)} style={{ padding:'4px 8px', fontSize:12, background:'#dc2626', color:'white', border:'none', borderRadius:4, cursor:'pointer' }}>Delete</button>
+                    </td>
+                  )}
                 </tr>
               )
             })}
             {!tasks.length && (
-              <tr><td colSpan={5} style={{ padding:12 }}>No tasks yet. Add one above.</td></tr>
+              <tr><td colSpan={isManager ? 6 : 5} style={{ padding:12 }}>No tasks yet. Add one above.</td></tr>
             )}
           </tbody>
         </table>

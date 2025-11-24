@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react'
 import Dashboard from './Dashboard'
 import Login from './Login'
 import Register from './Register'
+import ForgotPassword from './ForgotPassword'
 import axios from 'axios'
 
 export default function App() {
@@ -55,6 +56,8 @@ export default function App() {
           <h1>Sign in to continue</h1>
           {route === 'register' ? (
             <Register onLogin={(token, u) => handleLogin(token, u)} />
+          ) : route === 'forgot-password' ? (
+            <ForgotPassword />
           ) : (
             <Login onLogin={(token, u) => handleLogin(token, u)} />
           )}

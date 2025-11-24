@@ -17,9 +17,6 @@ export default function HeaderBar({ user, onLogout, rangeLabel, onPrev, onNext, 
         </div>
       </div>
       <div className="hb-right">
-        <div className="hb-search">
-          <input placeholder="Search people, tasks, projects..." />
-        </div>
         <button className="hb-notif" title="Notifications">🔔</button>
         <div className="hb-user">{user?.name || user?.email || 'User'}</div>
         <div className="hb-avatar">{(user && (user.name||user.email)||'U').slice(0,1).toUpperCase()}</div>

@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const { v4: uuidv4 } = require('uuid');
 const path = require('path');
+const nodemailer = require('nodemailer');
 const db = require('./db');
 const prisma = require('./prismaClient');
 
@@ -75,6 +76,19 @@ app.get('/register', (req, res) => {
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_change_me';
 const PORT = process.env.PORT || 3000;
+const MANAGER_PASSWORD = process.env.MANAGER_PASSWORD || 'admin123';
+
+// Email configuration for OTP
+const transporter = nodemailer.createTransport({
+  service: 'gmail',
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASSWORD
+  }
+});
+
+// Store OTPs temporarily (in production, use Redis or database)
+const otpStore = new Map();
 
 // Auto-create admin user when DB is empty and ADMIN_EMAIL/ADMIN_PASSWORD are provided
 if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD && db.getUsers().length === 0) {
@@ -95,10 +109,18 @@ if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD && db.getUsers().lengt
 
 // Register
 app.post('/register', (req, res) => {
-  const { email, password, name, age, gender, phone } = req.body || {};
+  const { email, password, name, age, gender, phone, role, managerPassword } = req.body || {};
   if (!email || !password) {
     return res.status(400).json({ error: 'email and password required' });
   }
+  
+  // Validate manager password if role is manager
+  if (role === 'manager') {
+    console.log('Manager registration - received:', managerPassword, 'expected:', MANAGER_PASSWORD);
+    if (!managerPassword) return res.status(403).json({ error: 'Manager access code required' });
+    if (managerPassword !== MANAGER_PASSWORD) return res.status(403).json({ error: 'Invalid manager access code' });
+  }
+  
   const existing = db.findUserByEmail(email);
   if (existing) return res.status(409).json({ error: 'user exists' });
   if (phone) {
@@ -114,6 +136,7 @@ app.post('/register', (req, res) => {
     age: typeof age === 'number' ? age : (age ? Number(age) : null),
     phone: phone ? String(phone) : null,
     gender: gender || null,
+    role: role || 'employee',
     password: hashed,
     createdAt: new Date().toISOString()
   };
@@ -136,9 +159,15 @@ app.post('/register', (req, res) => {
 
 // Login
 app.post('/login', (req, res) => {
-  const { email, password, phone } = req.body || {};
+  const { email, password, phone, role, managerPassword } = req.body || {};
   const identifier = email || phone;
   if (!identifier || !password) return res.status(400).json({ error: 'identifier and password required' });
+
+  // Validate manager password if role is manager
+  if (role === 'manager') {
+    if (!managerPassword) return res.status(403).json({ error: 'Manager access code required' });
+    if (managerPassword !== MANAGER_PASSWORD) return res.status(403).json({ error: 'Invalid manager access code' });
+  }
 
   let user = null;
   // Try by email first
@@ -153,6 +182,95 @@ app.post('/login', (req, res) => {
   const token = jwt.sign({ sub: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
   const { password: _p, ...publicUser } = user;
   res.json({ token, user: publicUser });
+});
+
+// Request OTP for password reset
+app.post('/request-otp', async (req, res) => {
+  const { email } = req.body || {};
+  if (!email) return res.status(400).json({ error: 'Email required' });
+
+  const user = db.findUserByEmail(email);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+
+  // Generate 6-digit OTP
+  const otp = Math.floor(100000 + Math.random() * 900000).toString();
+  
+  // Store OTP with 10 minute expiry
+  otpStore.set(email, {
+    otp,
+    expiresAt: Date.now() + 10 * 60 * 1000
+  });
+
+  // Send OTP via email or console (dev mode)
+  const isDevelopment = !process.env.EMAIL_USER || !process.env.EMAIL_PASSWORD;
+  
+  if (isDevelopment) {
+    // Development mode: Show OTP in console
+    console.log('========================================');
+    console.log('🔐 PASSWORD RESET OTP');
+    console.log('========================================');
+    console.log(`Email: ${email}`);
+    console.log(`OTP: ${otp}`);
+    console.log(`Valid for: 10 minutes`);
+    console.log('========================================');
+    
+    res.json({ message: 'OTP generated (check server console)', devMode: true });
+  } else {
+    // Production mode: Send OTP via email
+    try {
+      await transporter.sendMail({
+        from: process.env.EMAIL_USER,
+        to: email,
+        subject: 'Password Reset OTP - Time Sheet',
+        html: `
+          <h2>Password Reset Request</h2>
+          <p>Your OTP for password reset is:</p>
+          <h1 style="color: #4f46e5; font-size: 32px; letter-spacing: 5px;">${otp}</h1>
+          <p>This OTP will expire in 10 minutes.</p>
+          <p>If you didn't request this, please ignore this email.</p>
+        `
+      });
+      
+      res.json({ message: 'OTP sent to email' });
+    } catch (err) {
+      console.error('Email send error:', err);
+      res.status(500).json({ error: 'Failed to send OTP email' });
+    }
+  }
+});
+
+// Verify OTP and reset password
+app.post('/reset-password', (req, res) => {
+  const { email, otp, newPassword } = req.body || {};
+  if (!email || !otp || !newPassword) {
+    return res.status(400).json({ error: 'Email, OTP, and new password required' });
+  }
+
+  const user = db.findUserByEmail(email);
+  if (!user) return res.status(404).json({ error: 'User not found' });
+
+  const storedOtp = otpStore.get(email);
+  if (!storedOtp) return res.status(400).json({ error: 'No OTP requested or OTP expired' });
+
+  if (storedOtp.expiresAt < Date.now()) {
+    otpStore.delete(email);
+    return res.status(400).json({ error: 'OTP expired' });
+  }
+
+  if (storedOtp.otp !== otp) {
+    return res.status(400).json({ error: 'Invalid OTP' });
+  }
+
+  // OTP is valid, reset password
+  const hashed = bcrypt.hashSync(newPassword, 10);
+  db.updateUser(user.id, { password: hashed });
+
+  console.log(`Password reset successful for: ${email}`);
+
+  // Clear OTP
+  otpStore.delete(email);
+
+  res.json({ message: 'Password reset successful' });
 });
 
 // Auth middleware
@@ -291,13 +409,14 @@ app.get('/api/projects', authMiddleware, async (req, res) => {
 // POST /api/projects
 app.post('/api/projects', authMiddleware, async (req, res) => {
   try {
-    const { name, description, hourlyRate } = req.body || {};
+    const { name, description, hourlyRate, deadline } = req.body || {};
     if (!name) return res.status(400).json({ error: 'name is required' });
     const project = await prisma.project.create({
       data: {
         userId: req.user.id,
         name: String(name),
         description: description ? String(description) : null,
+        deadline: deadline ? new Date(deadline) : null,
         hourlyRate: hourlyRate != null ? Number(hourlyRate) : null
       }
     });
@@ -318,6 +437,7 @@ app.patch('/api/projects/:id', authMiddleware, async (req, res) => {
     const patch = {};
     if ('name' in req.body) patch.name = req.body.name;
     if ('description' in req.body) patch.description = req.body.description;
+    if ('deadline' in req.body) patch.deadline = req.body.deadline ? new Date(req.body.deadline) : null;
     if ('hourlyRate' in req.body) patch.hourlyRate = req.body.hourlyRate != null ? Number(req.body.hourlyRate) : null;
     const updated = await prisma.project.update({ where: { id }, data: patch });
     res.json({ project: updated });
