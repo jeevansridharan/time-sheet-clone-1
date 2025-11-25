@@ -34,6 +34,12 @@ export default function PeoplePage({ user }) {
 
   async function save() {
     if (!form.name && !form.email) { setError('Provide name or email'); return }
+    // Prevent duplicate email or name
+    const exists = people.some(p => (p.email && form.email && p.email.toLowerCase() === form.email.toLowerCase()) || (p.name && form.name && p.name.toLowerCase() === form.name.toLowerCase()))
+    if (exists) {
+      setError('A person with this email or name already exists.');
+      return;
+    }
     try {
       setSaving(true)
       await axios.post('/api/people', form, { headers })
@@ -81,6 +87,17 @@ export default function PeoplePage({ user }) {
 
   if (loading) return <div>Loading people…</div>
 
+  // Filter for unique email and name
+  const uniquePeople = []
+  const seen = new Set()
+  for (const p of people) {
+    const key = (p.email || '') + '|' + (p.name || '')
+    if (!seen.has(key)) {
+      uniquePeople.push(p)
+      seen.add(key)
+    }
+  }
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -114,7 +131,7 @@ export default function PeoplePage({ user }) {
             </tr>
           </thead>
           <tbody>
-            {people.length ? people.map(p => (
+            {uniquePeople.length ? uniquePeople.map(p => (
               editingId === p.id ? (
                 <tr key={p.id}>
                   <td>{p.id ? p.id.slice(0,6).toUpperCase() : '—'}</td>

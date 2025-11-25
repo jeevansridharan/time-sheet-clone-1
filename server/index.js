@@ -398,8 +398,11 @@ app.delete('/api/entries/:id', authMiddleware, (req, res) => {
 // GET /api/projects
 app.get('/api/projects', authMiddleware, async (req, res) => {
   try {
-    const projects = await prisma.project.findMany({ where: { userId: req.user.id }, orderBy: { createdAt: 'desc' } });
-    res.json({ projects });
+    // Use file-based DB instead of Prisma
+    const allProjects = db.getProjects();
+    // Optionally filter by userId if needed
+    // const projects = allProjects.filter(p => p.userId === req.user.id);
+    res.json({ projects: allProjects });
   } catch (err) {
     console.error('GET /api/projects error', err);
     res.status(500).json({ error: 'server error' });
@@ -439,15 +442,16 @@ app.patch('/api/projects/:id', authMiddleware, async (req, res) => {
       return res.status(403).json({ error: 'Only managers can edit projects' });
     }
     const id = req.params.id;
-    const existing = await prisma.project.findUnique({ where: { id } });
+    const existing = db.getProjects().find(p => p.id === id);
     if (!existing) return res.status(404).json({ error: 'not found' });
     if (existing.userId !== req.user.id) return res.status(403).json({ error: 'forbidden' });
     const patch = {};
     if ('name' in req.body) patch.name = req.body.name;
     if ('description' in req.body) patch.description = req.body.description;
-    if ('deadline' in req.body) patch.deadline = req.body.deadline ? new Date(req.body.deadline) : null;
+    if ('deadline' in req.body) patch.deadline = req.body.deadline ? new Date(req.body.deadline).toISOString() : null;
     if ('hourlyRate' in req.body) patch.hourlyRate = req.body.hourlyRate != null ? Number(req.body.hourlyRate) : null;
-    const updated = await prisma.project.update({ where: { id }, data: patch });
+    if ('status' in req.body) patch.status = req.body.status;
+    const updated = db.updateProject(id, patch);
     res.json({ project: updated });
   } catch (err) {
     console.error('PATCH /api/projects/:id error', err);

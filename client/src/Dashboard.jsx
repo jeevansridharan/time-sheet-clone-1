@@ -72,8 +72,8 @@ export default function Dashboard({ user, onLogout }) {
             <button className={view==='month'?'active':''} onClick={()=>setView('month')}>Month</button>
             <button className={view==='timeline'?'active':''} onClick={()=>setView('timeline')}>Day</button>
           </div>
-          {view === 'calendar' && <WeekCalendar weekStart={weekStart} />}
-          {view === 'month' && <MonthCalendar monthStart={monthStart} />}
+          {view === 'calendar' && <WeekCalendar weekStart={weekStart} user={user} />}
+          {view === 'month' && <MonthCalendar monthStart={monthStart} user={user} />}
           {view === 'timeline' && <VerticalTimeline refreshKey={refreshKey} />}
         </>
       )
@@ -105,13 +105,9 @@ export default function Dashboard({ user, onLogout }) {
           setView={setView}
           onNewTask={() => setShowNew(true)}
         />
-        <div className="dash-content">
-          <div className="dash-primary">
+        <div className="dash-content" style={{gap:0}}>
+          <div className="dash-primary" style={{flex:1}}>
             {renderMain()}
-          </div>
-          <div className="side-column">
-            <StatsPanel />
-            <InsightsPanel />
           </div>
         </div>
       </div>

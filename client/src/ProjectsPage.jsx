@@ -27,6 +27,12 @@ export default function ProjectsPage({ user }) {
   const [projectMembers, setProjectMembers] = useState([])
   const [editingProject, setEditingProject] = useState(null)
   const [editForm, setEditForm] = useState({ name: '', description: '', deadline: '' })
+  const [checkedInProject, setCheckedInProject] = useState(() => {
+    const saved = localStorage.getItem('project_checkin')
+    return saved ? JSON.parse(saved) : null
+  })
+  const [projectTime, setProjectTime] = useState('00:00:00')
+  const [lastSessionTime, setLastSessionTime] = useState(null)
 
   console.log('ProjectsPage user object:', user)
   const isManager = user?.role === 'manager'
@@ -56,6 +62,74 @@ export default function ProjectsPage({ user }) {
   }
 
   useEffect(() => { load() }, [])
+
+  // Timer for checked-in project
+  useEffect(() => {
+    if (!checkedInProject) {
+      if (lastSessionTime) {
+        setProjectTime(lastSessionTime)
+      } else {
+        setProjectTime('00:00:00')
+      }
+      return
+    }
+    const updateTimer = () => {
+      const start = new Date(checkedInProject.startTime)
+      const now = new Date()
+      const diffSeconds = Math.floor((now - start) / 1000)
+      const hours = Math.floor(diffSeconds / 3600)
+      const minutes = Math.floor((diffSeconds % 3600) / 60)
+      const seconds = diffSeconds % 60
+      setProjectTime(
+        `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`
+      )
+    }
+    updateTimer()
+    const interval = setInterval(updateTimer, 1000)
+    return () => clearInterval(interval)
+  }, [checkedInProject, lastSessionTime])
+
+  function handleCheckIn(project) {
+    const checkInData = {
+      projectId: project.id,
+      projectName: project.name,
+      startTime: new Date().toISOString()
+    }
+    setCheckedInProject(checkInData)
+    localStorage.setItem('project_checkin', JSON.stringify(checkInData))
+  }
+
+  async function handleCheckOut() {
+    if (!checkedInProject) return
+    
+    const startTime = new Date(checkedInProject.startTime)
+    const endTime = new Date()
+    const durationSeconds = Math.floor((endTime - startTime) / 1000)
+    const hours = (durationSeconds / 3600).toFixed(2)
+    
+    try {
+      // Create a time entry for this project work
+      await axios.post('/api/entries', {
+        title: `Work on ${checkedInProject.projectName}`,
+        project: checkedInProject.projectId,
+        start: checkedInProject.startTime,
+        end: endTime.toISOString(),
+        description: `Worked ${hours} hours on project`,
+        billable: true
+      }, { headers: authHeaders() })
+      
+      setCheckedInProject(null)
+      localStorage.removeItem('project_checkin')
+      // Save last session time
+      const h = Math.floor(durationSeconds / 3600)
+      const m = Math.floor((durationSeconds % 3600) / 60)
+      const s = durationSeconds % 60
+      setLastSessionTime(`${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`)
+      await load() // Reload to update durations
+    } catch (err) {
+      setError('Failed to check out')
+    }
+  }
 
   async function addProject(e) {
     e.preventDefault()
@@ -243,6 +317,8 @@ export default function ProjectsPage({ user }) {
     
     // Calculate project statistics
     const projectEntries = entries.filter(e => {
+      // Include entries directly on project OR entries on project tasks
+      if (e.project === selectedProject.id) return true
       const task = tasks.find(t => t.id === e.taskId)
       return task && task.projectId === selectedProject.id
     })
@@ -647,6 +723,7 @@ export default function ProjectsPage({ user }) {
               <th style={{ textAlign:'left', padding:8, borderBottom:'1px solid #eee' }}>Name</th>
               <th style={{ textAlign:'left', padding:8, borderBottom:'1px solid #eee' }}>Description</th>
               <th style={{ textAlign:'left', padding:8, borderBottom:'1px solid #eee' }}>Deadline</th>
+              <th style={{ textAlign:'center', padding:8, borderBottom:'1px solid #eee', width:160 }}>Time Tracking</th>
               {isManager && <th style={{ textAlign:'center', padding:8, borderBottom:'1px solid #eee', width:120 }}>Actions</th>}
             </tr>
           </thead>
@@ -656,18 +733,68 @@ export default function ProjectsPage({ user }) {
                 <td style={{ padding:8, borderBottom:'1px solid #f1f1f1', cursor:'pointer' }} onClick={() => setSelectedProject(p)}>{p.name}</td>
                 <td style={{ padding:8, borderBottom:'1px solid #f1f1f1', cursor:'pointer' }} onClick={() => setSelectedProject(p)}>{p.description || '—'}</td>
                 <td style={{ padding:8, borderBottom:'1px solid #f1f1f1', cursor:'pointer' }} onClick={() => setSelectedProject(p)}>
-                  {p.deadline ? new Date(p.deadline).toLocaleString() : '—'}
+                  <span onClick={e => { e.stopPropagation(); console.log('Project deadline:', p.deadline); }} style={{ cursor: p.deadline ? 'pointer' : 'default' }}>
+                    {p.deadline ? new Date(p.deadline).toLocaleString() : '—'}
+                  </span>
+                </td>
+                <td style={{ padding:8, borderBottom:'1px solid #f1f1f1', textAlign:'center' }}>
+                  {checkedInProject?.projectId === p.id ? (
+                    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4 }}>
+                      <span style={{ fontSize:12, fontWeight:'bold', color:'#059669' }}>{projectTime}</span>
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); handleCheckOut(); }} 
+                        style={{ padding:'4px 8px', fontSize:12, background:'#dc2626', color:'white', border:'none', borderRadius:4, cursor:'pointer' }}
+                      >
+                        Check Out
+                      </button>
+                    </div>
+                  ) : (
+                    <div style={{ display:'flex', flexDirection:'column', alignItems:'center', gap:4 }}>
+                      {lastSessionTime && (
+                        <span style={{ fontSize:12, fontWeight:'bold', color:'#059669' }}>Last: {lastSessionTime}</span>
+                      )}
+                      <button 
+                        onClick={(e) => { e.stopPropagation(); handleCheckIn(p); }} 
+                        style={{ padding:'4px 8px', fontSize:12, background:'#059669', color:'white', border:'none', borderRadius:4, cursor:'pointer' }}
+                        disabled={checkedInProject !== null}
+                      >
+                        Check In
+                      </button>
+                    </div>
+                  )}
                 </td>
                 {isManager && (
                   <td style={{ padding:8, borderBottom:'1px solid #f1f1f1', textAlign:'center' }}>
                     <button onClick={(e) => { e.stopPropagation(); openEditForm(p); }} style={{ padding:'4px 8px', marginRight:4, fontSize:12 }}>Edit</button>
-                    <button onClick={(e) => { e.stopPropagation(); deleteProject(p.id); }} style={{ padding:'4px 8px', fontSize:12, background:'#dc2626', color:'white', border:'none', borderRadius:4, cursor:'pointer' }}>Delete</button>
+                    <button onClick={(e) => { e.stopPropagation(); deleteProject(p.id); }} style={{ padding:'4px 8px', marginRight:4, fontSize:12, background:'#dc2626', color:'white', border:'none', borderRadius:4, cursor:'pointer' }}>Delete</button>
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation();
+                        try {
+                          await axios.patch(`/api/projects/${p.id}`, { status: 'complete' }, { headers: authHeaders() });
+                          setProjects(projects => projects.map(prj => prj.id === p.id ? { ...prj, status: 'complete' } : prj));
+                          // Reset timer if this project was checked in
+                          if (checkedInProject?.projectId === p.id) {
+                            setCheckedInProject(null);
+                            setLastSessionTime(projectTime);
+                            setProjectTime('00:00:00');
+                            localStorage.removeItem('project_checkin');
+                          }
+                        } catch (err) {
+                          setError('Failed to mark project complete');
+                        }
+                      }}
+                      style={{ padding:'4px 8px', fontSize:12, background:'#4f46e5', color:'white', border:'none', borderRadius:4, cursor:'pointer' }}
+                      disabled={p.status === 'complete'}
+                    >
+                      {p.status === 'complete' ? 'Completed' : 'Mark Complete'}
+                    </button>
                   </td>
                 )}
               </tr>
             ))}
               {!projects.length && (
-                <tr><td colSpan={isManager ? 4 : 3} style={{ padding:12 }}>No projects yet. {isManager ? 'Add one above.' : 'Contact a manager to create projects.'}</td></tr>
+                <tr><td colSpan={isManager ? 5 : 4} style={{ padding:12 }}>No projects yet. {isManager ? 'Add one above.' : 'Contact a manager to create projects.'}</td></tr>
             )}
           </tbody>
         </table>

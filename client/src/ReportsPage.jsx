@@ -58,13 +58,18 @@ export default function ReportsPage() {
   }, [entries, projMap])
 
   const donutDurationData = useMemo(() => {
-    const labels = Object.values(aggByProject).map(v => v.name)
-    const data = Object.values(aggByProject).map(v => Number(v.hours.toFixed(2)))
+    // Exclude 'Unassigned' and use unique colors
+    const palette = [
+      '#4f46e5', '#059669', '#dc2626', '#f59e42', '#eab308', '#14b8a6', '#6366f1', '#f43f5e', '#84cc16', '#0ea5e9', '#a21caf', '#d97706'
+    ]
+    const filtered = Object.values(aggByProject).filter(v => v.name !== 'Unassigned')
+    const labels = filtered.map(v => v.name)
+    const data = filtered.map(v => Number(v.hours.toFixed(2)))
     return {
       labels,
       datasets: [{
         data,
-        backgroundColor: labels.map((_, i) => '#a8d19b'),
+        backgroundColor: labels.map((_, i) => palette[i % palette.length]),
         borderWidth: 0
       }]
     }

@@ -31,9 +31,9 @@ body { font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvet
 .hb-avatar { width:36px; height:36px; border-radius:50%; background:#eef2ff; color:#1e3a8a; display:grid; place-items:center; font-weight:700; }
 .hb-new { background:#06b6d4; border-color:#06b6d4; color:#fff; }
 
-.dash-content { display:flex; gap:16px; padding:16px; }
+.dash-content { display:flex; gap:0; padding:16px; }
 .dash-primary { flex:1; }
-.side-column { width:280px; display:flex; flex-direction:column; gap:12px; }
+/* .side-column removed for full-width main area */
 
 .workflow-board {
 	display: flex;
@@ -238,10 +238,43 @@ body { font-family: Inter, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvet
 .vtl-hour-line { position:absolute; left:0; right:0; height:1px; background:#e1e1e1; }
 .vtl-hour-label { position:absolute; left:0; top:2px; font-size:10px; color:#666; }
 .vtl-items { position:relative; }
-.vtl-item { position:absolute; left:70px; right:12px; background:#fff; border:1px solid #c8d3e3; border-left:4px solid #457b9d; border-radius:4px; padding:4px 6px; box-shadow:0 1px 2px rgba(0,0,0,0.08); display:flex; align-items:flex-start; }
-.vtl-item-content { font-size:12px; line-height:1.3; }
-.vtl-item-title { font-weight:600; margin-bottom:2px; }
-.vtl-item-time { font-size:11px; color:#555; }
+.vtl-item {
+	position: absolute;
+	left: 70px;
+	right: 12px;
+	background: #f8fafc;
+	border: 1.5px solid #c8d3e3;
+	border-left: 6px solid #457b9d;
+	border-radius: 10px;
+	padding: 10px 14px;
+	box-shadow: 0 2px 8px rgba(0,0,0,0.10);
+	display: flex;
+	align-items: flex-start;
+	margin-bottom: 10px;
+	font-family: 'Inter', system-ui, sans-serif;
+	transition: box-shadow 0.2s;
+}
+.vtl-item:hover {
+	box-shadow: 0 4px 16px rgba(69,123,157,0.18);
+	background: #e3f2fd;
+}
+.vtl-item-content {
+	font-size: 14px;
+	line-height: 1.5;
+	width: 100%;
+	word-break: break-word;
+}
+.vtl-item-title {
+	font-weight: 700;
+	margin-bottom: 4px;
+	font-size: 15px;
+	color: #1e293b;
+}
+.vtl-item-time {
+	font-size: 12px;
+	color: #457b9d;
+	font-weight: 500;
+}
 .vtl-now { position:absolute; left:0; right:0; height:2px; background:#e63946; box-shadow:0 0 4px rgba(230,57,70,0.6); }
 
 /* Week calendar (read-only scaffold) */
