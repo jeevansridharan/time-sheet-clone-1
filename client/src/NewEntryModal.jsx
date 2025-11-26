@@ -25,13 +25,11 @@ export default function NewEntryModal({ onCancel, onCreated }) {
     let mounted = true
     ;(async () => {
       try {
-        const [pr, tr, tm] = await Promise.all([
-          axios.get('/api/projects', { headers: authHeaders() }),
+        const [tr, tm] = await Promise.all([
           axios.get('/api/tasks', { headers: authHeaders() }),
           axios.get('/api/teams', { headers: authHeaders() })
         ])
         if (!mounted) return
-        setProjects(pr.data.projects || [])
         setTasks(tr.data.tasks || [])
         setTeams(tm.data.teams || [])
       } catch {}

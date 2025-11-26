@@ -1,13 +1,17 @@
 import React, { useEffect, useState } from 'react'
 import axios from 'axios'
 
-function useAuthHeaders() {
-  const t = localStorage.getItem('tpodo_token') || sessionStorage.getItem('tpodo_token')
-  return t ? { Authorization: `Bearer ${t}` } : {}
+function getAuthHeaders() {
+  const token = localStorage.getItem('tpodo_token') || sessionStorage.getItem('tpodo_token');
+  if (!token) {
+    console.warn('No token found in storage');
+    return {};
+  }
+  return { Authorization: `Bearer ${token}` };
 }
 
 export default function GroupPage() {
-  const headers = useAuthHeaders()
+  const headers = getAuthHeaders()
   const [teams, setTeams] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)

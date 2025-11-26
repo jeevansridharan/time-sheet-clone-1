@@ -10,7 +10,8 @@
     "test": "jest --runInBand",
     "create-admin": "node scripts/create-admin.js",
     "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev --name init --preview-feature"
+    "prisma:migrate": "prisma migrate dev --name init --preview-feature",
+    "sync:users": "node scripts/sync-users.js"
   },
   "author": "",
   "license": "MIT",

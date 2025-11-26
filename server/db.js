@@ -1,9 +1,33 @@
+function deleteEntry(id) {
+  const before = getEntries().length;
+  _db.entries = getEntries().filter(e => e.id !== id);
+  const after = _db.entries.length;
+  if (after !== before) save();
+  return before !== after;
+}
+function updateEntry(id, patch) {
+  const idx = getEntries().findIndex(e => e.id === id);
+  if (idx === -1) return null;
+  _db.entries[idx] = { ..._db.entries[idx], ...patch, updatedAt: new Date().toISOString() };
+  save();
+  return _db.entries[idx];
+}
+function findUserById(id) {
+  return _db.users.find(u => u.id === id);
+}
+function findUserByPhone(phone) {
+  if (!phone) return undefined;
+  return _db.users.find(u => u.phone === phone);
+}
+function findUserByEmail(email) {
+  return _db.users.find(u => u.email === email);
+}
 const fs = require('fs');
 const path = require('path');
 
 const DB_PATH = path.join(__dirname, 'db.json');
 
-let _db = { users: [], entries: [], projects: [], tasks: [], teams: [] };
+let _db = { users: [], entries: [], tasks: [], teams: [] };
 
 function load() {
   try {
@@ -12,7 +36,6 @@ function load() {
       _db = JSON.parse(raw || '{}');
       if (!Array.isArray(_db.users)) _db.users = [];
       if (!Array.isArray(_db.entries)) _db.entries = [];
-      if (!Array.isArray(_db.projects)) _db.projects = [];
       if (!Array.isArray(_db.tasks)) _db.tasks = [];
       if (!Array.isArray(_db.teams)) _db.teams = [];
       if (!Array.isArray(_db.people)) _db.people = [];
@@ -21,7 +44,7 @@ function load() {
     }
   } catch (err) {
     console.error('Failed to load DB:', err);
-    _db = { users: [], entries: [], projects: [], tasks: [], teams: [] };
+    _db = { users: [], entries: [], tasks: [], teams: [] };
     save();
   }
 }
@@ -46,35 +69,7 @@ function addEntry(entry) {
   _db.entries = _db.entries || [];
   _db.entries.push(entry);
   save();
-}
-
-function updateEntry(id, patch) {
-  const idx = getEntries().findIndex(e => e.id === id);
-  if (idx === -1) return null;
-  _db.entries[idx] = { ..._db.entries[idx], ...patch, updatedAt: new Date().toISOString() };
-  save();
-  return _db.entries[idx];
-}
-
-function deleteEntry(id) {
-  const before = getEntries().length;
-  _db.entries = getEntries().filter(e => e.id !== id);
-  const after = _db.entries.length;
-  if (after !== before) save();
-  return before !== after;
-}
-
-function findUserByEmail(email) {
-  return _db.users.find(u => u.email === email);
-}
-
-function findUserByPhone(phone) {
-  if (!phone) return undefined;
-  return _db.users.find(u => u.phone === phone);
-}
-
-function findUserById(id) {
-  return _db.users.find(u => u.id === id);
+  // Project functions removed
 }
 
 function addUser(user) {
@@ -196,12 +191,6 @@ module.exports = {
   addEntry,
   updateEntry,
   deleteEntry,
-  // projects
-  getProjects,
-  findProjectById,
-  addProject,
-  updateProject,
-  deleteProject,
   // tasks
   getTasks,
   findTaskById,
@@ -223,4 +212,3 @@ module.exports = {
   save,
   DB_PATH
 };
-

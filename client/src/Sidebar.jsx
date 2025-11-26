@@ -11,7 +11,6 @@ const NAV_GROUPS = [
   {
     title: 'Manage',
     items: [
-      { key: 'projects', label: 'Projects' },
       { key: 'tasks', label: 'Tasks' },
       { key: 'people', label: 'People' },
       { key: 'group', label: 'Group' }
@@ -48,7 +47,6 @@ export default function Sidebar({ route }) {
                   key={item.key}
                   href={hrefFor(item.key)}
                   className={route === item.key ? 'active' : ''}
-                  title={item.label}
                 >
                   <span className="sb-item-icon">•</span>
                   <span className="sb-item-label">{item.label}</span>
