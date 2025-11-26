@@ -75,7 +75,7 @@ app.get('/register', (req, res) => {
 });
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_change_me';
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 const MANAGER_PASSWORD = process.env.MANAGER_PASSWORD || 'admin123';
 
 // Email configuration for OTP
@@ -179,7 +179,7 @@ app.post('/login', (req, res) => {
   const ok = bcrypt.compareSync(password, user.password);
   if (!ok) return res.status(401).json({ error: 'invalid credentials' });
 
-  const token = jwt.sign({ sub: user.id, email: user.email }, JWT_SECRET, { expiresIn: '7d' });
+  const token = jwt.sign({ sub: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
   const { password: _p, ...publicUser } = user;
   res.json({ token, user: publicUser });
 });
@@ -275,18 +275,32 @@ app.post('/reset-password', (req, res) => {
 
 // Auth middleware
 function authMiddleware(req, res, next) {
-  const h = req.headers.authorization || '';
-  const m = h.match(/^Bearer\s+(.+)$/i);
-  if (!m) return res.status(401).json({ error: 'missing token' });
-  const token = m[1];
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Authorization header missing or malformed' });
+  }
+
+  const token = authHeader.split(' ')[1];
   try {
     const payload = jwt.verify(token, JWT_SECRET);
-    const user = db.findUserById(payload.sub);
-    if (!user) return res.status(401).json({ error: 'invalid token (user not found)' });
-    req.user = user;
+    // Resolve full user from in-memory db (so role and other fields are available)
+    let user = null;
+    try {
+      user = db && typeof db.findUserById === 'function' ? db.findUserById(payload.sub) : null;
+    } catch (err) {
+      console.warn('authMiddleware: db.findUserById threw', err && err.message);
+      user = null;
+    }
+    if (!user) {
+      // fall back to minimal user object
+      req.user = { id: payload.sub };
+      console.warn('authMiddleware: user not found in db, attached minimal user object');
+    } else {
+      req.user = user;
+    }
     next();
   } catch (err) {
-    return res.status(401).json({ error: 'invalid token' });
+    return res.status(401).json({ error: 'Invalid or expired token' });
   }
 }
 
@@ -393,90 +407,7 @@ app.delete('/api/entries/:id', authMiddleware, (req, res) => {
   }
 });
 
-// ---- Projects API ----
-// Use Prisma for project persistence.
-// GET /api/projects
-app.get('/api/projects', authMiddleware, async (req, res) => {
-  try {
-    // Use file-based DB instead of Prisma
-    const allProjects = db.getProjects();
-    // Optionally filter by userId if needed
-    // const projects = allProjects.filter(p => p.userId === req.user.id);
-    res.json({ projects: allProjects });
-  } catch (err) {
-    console.error('GET /api/projects error', err);
-    res.status(500).json({ error: 'server error' });
-  }
-});
-
-// POST /api/projects
-app.post('/api/projects', authMiddleware, async (req, res) => {
-  try {
-    // Only managers can create projects
-    if (req.user.role !== 'manager') {
-      return res.status(403).json({ error: 'Only managers can create projects' });
-    }
-    const { name, description, hourlyRate, deadline } = req.body || {};
-    if (!name) return res.status(400).json({ error: 'name is required' });
-    const project = await prisma.project.create({
-      data: {
-        userId: req.user.id,
-        name: String(name),
-        description: description ? String(description) : null,
-        deadline: deadline ? new Date(deadline) : null,
-        hourlyRate: hourlyRate != null ? Number(hourlyRate) : null
-      }
-    });
-    res.status(201).json({ project });
-  } catch (err) {
-    console.error('POST /api/projects error', err);
-    res.status(500).json({ error: 'server error' });
-  }
-});
-
-// PATCH /api/projects/:id
-app.patch('/api/projects/:id', authMiddleware, async (req, res) => {
-  try {
-    // Only managers can edit projects
-    if (req.user.role !== 'manager') {
-      return res.status(403).json({ error: 'Only managers can edit projects' });
-    }
-    const id = req.params.id;
-    const existing = db.getProjects().find(p => p.id === id);
-    if (!existing) return res.status(404).json({ error: 'not found' });
-    if (existing.userId !== req.user.id) return res.status(403).json({ error: 'forbidden' });
-    const patch = {};
-    if ('name' in req.body) patch.name = req.body.name;
-    if ('description' in req.body) patch.description = req.body.description;
-    if ('deadline' in req.body) patch.deadline = req.body.deadline ? new Date(req.body.deadline).toISOString() : null;
-    if ('hourlyRate' in req.body) patch.hourlyRate = req.body.hourlyRate != null ? Number(req.body.hourlyRate) : null;
-    if ('status' in req.body) patch.status = req.body.status;
-    const updated = db.updateProject(id, patch);
-    res.json({ project: updated });
-  } catch (err) {
-    console.error('PATCH /api/projects/:id error', err);
-    res.status(500).json({ error: 'server error' });
-  }
-});
-
-// DELETE /api/projects/:id
-app.delete('/api/projects/:id', authMiddleware, async (req, res) => {
-  try {
-    // Only managers can delete projects
-    if (req.user.role !== 'manager') {
-      return res.status(403).json({ error: 'Only managers can delete projects' });
-    }
-    const id = req.params.id;
-    const existing = await prisma.project.findUnique({ where: { id } });
-    if (!existing) return res.status(404).json({ error: 'not found' });
-    if (existing.userId !== req.user.id) return res.status(403).json({ error: 'forbidden' });
-    await prisma.project.delete({ where: { id } });
-    res.json({ ok: true });
-  } catch (err) {
-    console.error('DELETE /api/projects/:id error', err);
-    res.status(500).json({ error: 'server error' });
-  }
-});
+// Projects API removed
 
 // ---- People API ----
 // GET /api/people
@@ -686,6 +617,7 @@ app.delete('/api/tasks/:id', authMiddleware, (req, res) => {
 });
 
 // ---- Teams API ----
+// (Todos API removed)
 // GET /api/teams
 app.get('/api/teams', authMiddleware, (req, res) => {
   try {

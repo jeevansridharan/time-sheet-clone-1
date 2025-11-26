@@ -1,6 +1,5 @@
 import React, { useMemo, useState, useEffect } from 'react'
 import { DateTime } from 'luxon'
-import axios from 'axios'
 
 function authHeaders() {
   const token = localStorage.getItem('tpodo_token') || sessionStorage.getItem('tpodo_token')

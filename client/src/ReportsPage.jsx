@@ -15,7 +15,6 @@ function useAuthHeaders() {
 export default function ReportsPage() {
   const headers = useAuthHeaders()
   const [entries, setEntries] = useState([])
-  const [projects, setProjects] = useState([])
   const [error, setError] = useState(null)
   const [rangeDays, setRangeDays] = useState(7)
 
@@ -23,13 +22,9 @@ export default function ReportsPage() {
     let mounted = true
     ;(async () => {
       try {
-        const [e, p] = await Promise.all([
-          axios.get('/api/entries', { headers }),
-          axios.get('/api/projects', { headers })
-        ])
+        const e = await axios.get('/api/entries', { headers })
         if (!mounted) return
         setEntries(e.data.entries || [])
-        setProjects(p.data.projects || [])
         setError(null)
       } catch (err) {
         if (!mounted) return
@@ -39,15 +34,12 @@ export default function ReportsPage() {
     return () => { mounted = false }
   }, [headers])
 
-  const projMap = useMemo(() => Object.fromEntries(projects.map(p => [p.id, p])), [projects])
-
   // Aggregate duration per project (hours)
   const aggByProject = useMemo(() => {
     const totals = {}
     for (const e of entries) {
       const pid = e.project || 'unassigned'
-      const p = projMap[pid]
-      if (!totals[pid]) totals[pid] = { name: p?.name || 'Unassigned', hours: 0 }
+      if (!totals[pid]) totals[pid] = { name: pid === 'unassigned' ? 'Unassigned' : pid, hours: 0 }
       if (!e.end) continue
       const start = DateTime.fromISO(e.start)
       const end = DateTime.fromISO(e.end)
@@ -55,7 +47,7 @@ export default function ReportsPage() {
       totals[pid].hours += h
     }
     return totals
-  }, [entries, projMap])
+  }, [entries])
 
   const donutDurationData = useMemo(() => {
     // Exclude 'Unassigned' and use unique colors

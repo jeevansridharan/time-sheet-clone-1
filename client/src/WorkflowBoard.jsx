@@ -24,7 +24,6 @@ function normalizeWorkflow(team) {
 export default function WorkflowBoard() {
   const headers = useAuthHeaders()
   const [teams, setTeams] = useState([])
-  const [projects, setProjects] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -36,12 +35,8 @@ export default function WorkflowBoard() {
     setLoading(true)
     setError(null)
     try {
-      const [teamsRes, projectsRes] = await Promise.all([
-        axios.get('/api/teams', { headers }),
-        axios.get('/api/projects', { headers })
-      ])
+      const teamsRes = await axios.get('/api/teams', { headers })
       setTeams(teamsRes.data.teams || [])
-      setProjects(projectsRes.data.projects || [])
     } catch (e) {
       setError('Failed to load workflows')
     } finally {
@@ -95,8 +90,8 @@ export default function WorkflowBoard() {
 
   // Count projects per team
   const projectsByTeam = {}
-  projects.forEach(project => {
-    const teamId = project.teamId
+  teams.forEach(team => {
+    const teamId = team.id
     if (teamId) {
       projectsByTeam[teamId] = (projectsByTeam[teamId] || 0) + 1
     }

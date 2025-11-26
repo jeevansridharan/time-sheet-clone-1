@@ -5,11 +5,12 @@ import WeekCalendar from './WeekCalendar'
 import MonthCalendar from './MonthCalendar'
 import StatsPanel from './StatsPanel'
 import Sidebar from './Sidebar'
+import SeparateSidebar from './SeparateSidebar'
 import HeaderBar from './HeaderBar'
 import InsightsPanel from './InsightsPanel'
 import NewEntryModal from './NewEntryModal'
 import TimesList from './TimesList'
-import ProjectsPage from './ProjectsPage'
+
 import TasksPage from './TasksPage'
 import ReportsPage from './ReportsPage'
 import WorkflowBoard from './WorkflowBoard'
@@ -79,7 +80,7 @@ export default function Dashboard({ user, onLogout }) {
       )
     }
     if (route === 'times') return <TimesList refreshKey={refreshKey} />
-  if (route === 'projects') return <ProjectsPage user={user} />
+  // if (route === 'projects') return <ProjectsPage user={user} />
     if (route === 'people') return <PeoplePage user={user} />
     if (route === 'tasks') return <TasksPage user={user} />
     if (route === 'reports') return <ReportsPage />
@@ -108,6 +109,9 @@ export default function Dashboard({ user, onLogout }) {
         <div className="dash-content" style={{gap:0}}>
           <div className="dash-primary" style={{flex:1}}>
             {renderMain()}
+          </div>
+          <div style={{ width: 300 }}>
+            <SeparateSidebar user={user} />
           </div>
         </div>
       </div>

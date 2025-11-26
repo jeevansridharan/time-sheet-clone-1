@@ -14,7 +14,7 @@ export default function Login({ onLogin }) {
     setError(null)
     setLoading(true)
     try {
-      const res = await axios.post('/login', { email, password, role, managerPassword: role === 'manager' ? managerPassword : undefined })
+      const res = await axios.post('http://localhost:3001/login', { email, password, role, managerPassword: role === 'manager' ? managerPassword : undefined })
       if (res.data && res.data.token) {
         // store token and propagate user info
         localStorage.setItem('tpodo_token', res.data.token)
