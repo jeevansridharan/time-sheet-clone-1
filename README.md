@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # tpodo timesheet - minimal server
 
 This is a minimal Node.js + Express server to get started for the tpodo intern project. It provides simple JSON-file-backed user registration and login endpoints.
@@ -38,3 +39,6 @@ Next steps for the project:
 - Add time tracking models (punch in/out, timeline)
 - Build a frontend (React or simple server-rendered pages)
 - Replace JSON store with a proper DB and add migrations
+=======
+# Time-sheet
+>>>>>>> dade8f09e7548d2ecba275ed03766844e3d11a50
