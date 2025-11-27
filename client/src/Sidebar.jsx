@@ -21,14 +21,6 @@ const NAV_GROUPS = [
     items: [
       { key: 'todo', label: 'Todo List' }
     ]
-  },
-  {
-    title: 'Reports',
-    items: [
-      { key: 'reports', label: 'Reports' },
-      { key: 'workflow', label: 'Workflow' },
-      { key: 'nameme', label: 'Me' }
-    ]
   }
 ];
 
