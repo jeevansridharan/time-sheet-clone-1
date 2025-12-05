@@ -9,7 +9,6 @@ import HeaderBar from './HeaderBar'
 import InsightsPanel from './InsightsPanel'
 import NewEntryModal from './NewEntryModal'
 import TimesList from './TimesList'
-import ProjectsPage from './ProjectsPage'
 import TasksPage from './TasksPage'
 import ReportsPage from './ReportsPage'
 import WorkflowBoard from './WorkflowBoard'
@@ -24,7 +23,7 @@ export default function Dashboard({ user, onLogout }) {
   const [view, setView] = useState('calendar') // 'calendar' | 'month' | 'timeline'
   const [weekStart, setWeekStart] = useState(DateTime.now().startOf('week')) // Monday by default (luxon startOf('week'))
   const [monthStart, setMonthStart] = useState(DateTime.now().startOf('month'))
-  const [route, setRoute] = useState('dashboard') // dashboard | profile | times | tasks | projects | reports | teams | workflow
+  const [route, setRoute] = useState('dashboard') // dashboard | profile | times | tasks | reports | teams | workflow
   const [showNew, setShowNew] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
 
@@ -79,7 +78,6 @@ export default function Dashboard({ user, onLogout }) {
       )
     }
     if (route === 'times') return <TimesList refreshKey={refreshKey} />
-  if (route === 'projects') return <ProjectsPage user={user} />
     if (route === 'people') return <PeoplePage user={user} />
     if (route === 'tasks') return <TasksPage user={user} />
     if (route === 'reports') return <ReportsPage />

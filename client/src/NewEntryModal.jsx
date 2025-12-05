@@ -5,14 +5,12 @@ import { DateTime } from 'luxon'
 export default function NewEntryModal({ onCancel, onCreated }) {
   const now = useMemo(() => DateTime.local(), [])
   const [title, setTitle] = useState('')
-  const [project, setProject] = useState('')
   const [taskId, setTaskId] = useState('')
   const [start, setStart] = useState(now.toFormat("yyyy-LL-dd'T'HH:mm"))
   const [end, setEnd] = useState(now.plus({ hours: 1 }).toFormat("yyyy-LL-dd'T'HH:mm"))
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const [tasks, setTasks] = useState([])
-  const [projects, setProjects] = useState([])
   const [teams, setTeams] = useState([])
   const [teamId, setTeamId] = useState('')
 
@@ -25,13 +23,11 @@ export default function NewEntryModal({ onCancel, onCreated }) {
     let mounted = true
     ;(async () => {
       try {
-        const [pr, tr, tm] = await Promise.all([
-          axios.get('/api/projects', { headers: authHeaders() }),
+        const [tr, tm] = await Promise.all([
           axios.get('/api/tasks', { headers: authHeaders() }),
           axios.get('/api/teams', { headers: authHeaders() })
         ])
         if (!mounted) return
-        setProjects(pr.data.projects || [])
         setTasks(tr.data.tasks || [])
         setTeams(tm.data.teams || [])
       } catch {}
@@ -49,7 +45,6 @@ export default function NewEntryModal({ onCancel, onCreated }) {
       const endUtc = end ? DateTime.fromISO(end).toUTC().toISO() : null
       const res = await axios.post('/api/entries', {
         title: title || 'Entry',
-        project: project || null,
         start: startUtc,
         end: endUtc,
         taskId: taskId || null,
@@ -73,7 +68,7 @@ export default function NewEntryModal({ onCancel, onCreated }) {
         <div className="form-row">
           <label>Team</label>
           <select value={''} onChange={()=>{}} disabled>
-            <option value="">Select via task/project (optional)</option>
+            <option value="">Select via task (optional)</option>
           </select>
         </div>
         <form onSubmit={submit}>
@@ -81,13 +76,6 @@ export default function NewEntryModal({ onCancel, onCreated }) {
             <div className="form-row">
               <label>Title</label>
               <input value={title} onChange={e=>setTitle(e.target.value)} placeholder="What did you work on?" />
-            </div>
-            <div className="form-row">
-              <label>Project</label>
-              <select value={project} onChange={e=>setProject(e.target.value)}>
-                <option value="">No project</option>
-                {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-              </select>
             </div>
             <div className="form-row">
               <label>Task</label>

@@ -24,7 +24,6 @@ function normalizeWorkflow(team) {
 export default function WorkflowBoard() {
   const headers = useAuthHeaders()
   const [teams, setTeams] = useState([])
-  const [projects, setProjects] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -36,12 +35,8 @@ export default function WorkflowBoard() {
     setLoading(true)
     setError(null)
     try {
-      const [teamsRes, projectsRes] = await Promise.all([
-        axios.get('/api/teams', { headers }),
-        axios.get('/api/projects', { headers })
-      ])
+      const teamsRes = await axios.get('/api/teams', { headers })
       setTeams(teamsRes.data.teams || [])
-      setProjects(projectsRes.data.projects || [])
     } catch (e) {
       setError('Failed to load workflows')
     } finally {
@@ -93,22 +88,12 @@ export default function WorkflowBoard() {
   if (error) return <div style={{ color: 'crimson' }}>{error}</div>
   if (!teams.length) return <div>No teams yet. Create a team first to define its workflow.</div>
 
-  // Count projects per team
-  const projectsByTeam = {}
-  projects.forEach(project => {
-    const teamId = project.teamId
-    if (teamId) {
-      projectsByTeam[teamId] = (projectsByTeam[teamId] || 0) + 1
-    }
-  })
-
   return (
     <div className="workflow-board">
       <div className="workflow-teams-list" style={{ marginBottom: '24px', padding: '16px', background: '#f8f9fa', borderRadius: '8px' }}>
         <h3 style={{ marginBottom: '16px', fontSize: '20px', fontWeight: '600' }}>Teams Overview</h3>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
           {teams.map(team => {
-            const projectCount = projectsByTeam[team.id] || 0
             const members = team.members || []
             const isSelected = selectedTeam?.id === team.id
             return (
@@ -128,7 +113,7 @@ export default function WorkflowBoard() {
                 <div style={{ marginBottom: '12px' }}>
                   <h4 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '4px' }}>{team.name}</h4>
                   <div style={{ fontSize: '13px', color: '#6c757d' }}>
-                    {projectCount} {projectCount === 1 ? 'project' : 'projects'} • {members.length} {members.length === 1 ? 'member' : 'members'}
+                    {members.length} {members.length === 1 ? 'member' : 'members'}
                   </div>
                 </div>
                 {isSelected && members.length > 0 && (

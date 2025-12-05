@@ -75,7 +75,7 @@ app.get('/register', (req, res) => {
 });
 
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_secret_change_me';
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 3001;
 const MANAGER_PASSWORD = process.env.MANAGER_PASSWORD || 'admin123';
 
 // Email configuration for OTP
@@ -336,13 +336,12 @@ app.get('/api/entries', authMiddleware, (req, res) => {
 // Create entry
 app.post('/api/entries', authMiddleware, (req, res) => {
   try {
-    const { title, project, start, end, description, billable, taskId, teamId } = req.body || {};
+    const { title, start, end, description, billable, taskId, teamId } = req.body || {};
     if (!start) return res.status(400).json({ error: 'start is required' });
     const entry = {
       id: uuidv4(),
       userId: req.user.id,
       title: title || 'Untitled',
-      project: project || null,
       start: new Date(start).toISOString(),
       end: end ? new Date(end).toISOString() : null,
       description: description || null,
@@ -367,7 +366,7 @@ app.patch('/api/entries/:id', authMiddleware, (req, res) => {
     if (!existing) return res.status(404).json({ error: 'not found' });
     if (existing.userId !== req.user.id) return res.status(403).json({ error: 'forbidden' });
     const patch = {};
-    ['title','project','start','end','description','billable','taskId','teamId'].forEach(k => {
+    ['title','start','end','description','billable','taskId','teamId'].forEach(k => {
       if (k in req.body) patch[k] = req.body[k];
     });
     if (patch.start) patch.start = new Date(patch.start).toISOString();
@@ -394,87 +393,70 @@ app.delete('/api/entries/:id', authMiddleware, (req, res) => {
 });
 
 // ---- Projects API ----
-// Use Prisma for project persistence.
 // GET /api/projects
-app.get('/api/projects', authMiddleware, async (req, res) => {
+app.get('/api/projects', authMiddleware, (req, res) => {
   try {
-    // Use file-based DB instead of Prisma
-    const allProjects = db.getProjects();
-    // Optionally filter by userId if needed
-    // const projects = allProjects.filter(p => p.userId === req.user.id);
-    res.json({ projects: allProjects });
+    const all = db.getProjects();
+    const projects = all.filter(p => p.userId === req.user.id);
+    return res.json({ projects });
   } catch (err) {
-    console.error('GET /api/projects error', err);
-    res.status(500).json({ error: 'server error' });
+    return res.status(500).json({ error: 'server error' });
   }
 });
 
 // POST /api/projects
-app.post('/api/projects', authMiddleware, async (req, res) => {
+app.post('/api/projects', authMiddleware, (req, res) => {
   try {
-    // Only managers can create projects
-    if (req.user.role !== 'manager') {
-      return res.status(403).json({ error: 'Only managers can create projects' });
-    }
-    const { name, description, hourlyRate, deadline } = req.body || {};
+    const { name, description, deadline, hourlyRate } = req.body || {};
     if (!name) return res.status(400).json({ error: 'name is required' });
-    const project = await prisma.project.create({
-      data: {
-        userId: req.user.id,
-        name: String(name),
-        description: description ? String(description) : null,
-        deadline: deadline ? new Date(deadline) : null,
-        hourlyRate: hourlyRate != null ? Number(hourlyRate) : null
-      }
-    });
-    res.status(201).json({ project });
+    const project = {
+      id: uuidv4(),
+      userId: req.user.id,
+      name,
+      description: description || null,
+      deadline: deadline ? new Date(deadline).toISOString() : null,
+      hourlyRate: hourlyRate ? Number(hourlyRate) : null,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    db.addProject(project);
+    return res.status(201).json({ project });
   } catch (err) {
-    console.error('POST /api/projects error', err);
-    res.status(500).json({ error: 'server error' });
+    return res.status(500).json({ error: 'server error' });
   }
 });
 
 // PATCH /api/projects/:id
-app.patch('/api/projects/:id', authMiddleware, async (req, res) => {
+app.patch('/api/projects/:id', authMiddleware, (req, res) => {
   try {
-    // Only managers can edit projects
-    if (req.user.role !== 'manager') {
-      return res.status(403).json({ error: 'Only managers can edit projects' });
-    }
     const id = req.params.id;
-    const existing = db.getProjects().find(p => p.id === id);
+    const existing = db.findProjectById(id);
     if (!existing) return res.status(404).json({ error: 'not found' });
     if (existing.userId !== req.user.id) return res.status(403).json({ error: 'forbidden' });
     const patch = {};
-    if ('name' in req.body) patch.name = req.body.name;
-    if ('description' in req.body) patch.description = req.body.description;
-    if ('deadline' in req.body) patch.deadline = req.body.deadline ? new Date(req.body.deadline).toISOString() : null;
-    if ('hourlyRate' in req.body) patch.hourlyRate = req.body.hourlyRate != null ? Number(req.body.hourlyRate) : null;
-    if ('status' in req.body) patch.status = req.body.status;
+    ['name', 'description', 'deadline', 'hourlyRate'].forEach(k => {
+      if (k in req.body) patch[k] = req.body[k];
+    });
+    if (patch.deadline) patch.deadline = patch.deadline ? new Date(patch.deadline).toISOString() : null;
+    if (patch.hourlyRate) patch.hourlyRate = Number(patch.hourlyRate);
     const updated = db.updateProject(id, patch);
-    res.json({ project: updated });
+    return res.json({ project: updated });
   } catch (err) {
-    console.error('PATCH /api/projects/:id error', err);
-    res.status(500).json({ error: 'server error' });
+    return res.status(500).json({ error: 'server error' });
   }
 });
 
 // DELETE /api/projects/:id
-app.delete('/api/projects/:id', authMiddleware, async (req, res) => {
+app.delete('/api/projects/:id', authMiddleware, (req, res) => {
   try {
-    // Only managers can delete projects
-    if (req.user.role !== 'manager') {
-      return res.status(403).json({ error: 'Only managers can delete projects' });
-    }
     const id = req.params.id;
-    const existing = await prisma.project.findUnique({ where: { id } });
+    const existing = db.findProjectById(id);
     if (!existing) return res.status(404).json({ error: 'not found' });
     if (existing.userId !== req.user.id) return res.status(403).json({ error: 'forbidden' });
-    await prisma.project.delete({ where: { id } });
-    res.json({ ok: true });
+    const ok = db.deleteProject(id);
+    return res.json({ ok });
   } catch (err) {
-    console.error('DELETE /api/projects/:id error', err);
-    res.status(500).json({ error: 'server error' });
+    return res.status(500).json({ error: 'server error' });
   }
 });
 
@@ -588,12 +570,10 @@ function normalizeAssignee(input) {
 }
 
 // ---- Tasks API ----
-// GET /api/tasks?projectId=
 app.get('/api/tasks', authMiddleware, (req, res) => {
   try {
     const all = db.getTasks();
     let tasks = all.filter(t => t.userId === req.user.id);
-    if (req.query.projectId) tasks = tasks.filter(t => t.projectId === req.query.projectId);
     res.json({ tasks });
   } catch (err) {
     res.status(500).json({ error: 'server error' });
@@ -607,7 +587,7 @@ app.post('/api/tasks', authMiddleware, (req, res) => {
     if (req.user.role !== 'manager') {
       return res.status(403).json({ error: 'Only managers can create tasks' });
     }
-    const { title, description, projectId, status, teamId, todos, assignedTo } = req.body || {};
+    const { title, description, status, teamId, todos, assignedTo } = req.body || {};
     if (!title) return res.status(400).json({ error: 'title is required' });
     const normTodos = Array.isArray(todos)
       ? todos.map(t => {
@@ -620,7 +600,6 @@ app.post('/api/tasks', authMiddleware, (req, res) => {
       userId: req.user.id,
       title,
       description: description || null,
-      projectId: projectId || null,
       teamId: teamId || null,
       status: status || 'open',
       assignedTo: normalizeAssignee(assignedTo),
@@ -647,7 +626,7 @@ app.patch('/api/tasks/:id', authMiddleware, (req, res) => {
     if (!existing) return res.status(404).json({ error: 'not found' });
     if (existing.userId !== req.user.id) return res.status(403).json({ error: 'forbidden' });
     const patch = {};
-    ['title','description','projectId','status','teamId'].forEach(k => { if (k in req.body) patch[k] = req.body[k]; });
+    ['title','description','status','teamId'].forEach(k => { if (k in req.body) patch[k] = req.body[k]; });
     if ('assignedTo' in req.body) {
       patch.assignedTo = normalizeAssignee(req.body.assignedTo);
     }

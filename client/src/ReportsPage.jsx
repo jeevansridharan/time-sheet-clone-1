@@ -1,11 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import axios from 'axios'
 import { DateTime, Interval } from 'luxon'
-import { Chart as ChartJS, ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement } from 'chart.js'
+import { Chart as ChartJS, Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement } from 'chart.js'
 import annotationPlugin from 'chartjs-plugin-annotation'
-import { Doughnut, Bar } from 'react-chartjs-2'
+import { Bar } from 'react-chartjs-2'
 
-ChartJS.register(ArcElement, Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement, annotationPlugin)
+ChartJS.register(Tooltip, Legend, CategoryScale, LinearScale, BarElement, PointElement, LineElement, annotationPlugin)
 
 function useAuthHeaders() {
   const t = localStorage.getItem('tpodo_token') || sessionStorage.getItem('tpodo_token')
@@ -15,7 +15,6 @@ function useAuthHeaders() {
 export default function ReportsPage() {
   const headers = useAuthHeaders()
   const [entries, setEntries] = useState([])
-  const [projects, setProjects] = useState([])
   const [error, setError] = useState(null)
   const [rangeDays, setRangeDays] = useState(7)
 
@@ -23,13 +22,9 @@ export default function ReportsPage() {
     let mounted = true
     ;(async () => {
       try {
-        const [e, p] = await Promise.all([
-          axios.get('/api/entries', { headers }),
-          axios.get('/api/projects', { headers })
-        ])
+        const e = await axios.get('/api/entries', { headers })
         if (!mounted) return
         setEntries(e.data.entries || [])
-        setProjects(p.data.projects || [])
         setError(null)
       } catch (err) {
         if (!mounted) return
@@ -38,44 +33,6 @@ export default function ReportsPage() {
     })()
     return () => { mounted = false }
   }, [headers])
-
-  const projMap = useMemo(() => Object.fromEntries(projects.map(p => [p.id, p])), [projects])
-
-  // Aggregate duration per project (hours)
-  const aggByProject = useMemo(() => {
-    const totals = {}
-    for (const e of entries) {
-      const pid = e.project || 'unassigned'
-      const p = projMap[pid]
-      if (!totals[pid]) totals[pid] = { name: p?.name || 'Unassigned', hours: 0 }
-      if (!e.end) continue
-      const start = DateTime.fromISO(e.start)
-      const end = DateTime.fromISO(e.end)
-      const h = Math.max(0, end.diff(start, 'hours').hours)
-      totals[pid].hours += h
-    }
-    return totals
-  }, [entries, projMap])
-
-  const donutDurationData = useMemo(() => {
-    // Exclude 'Unassigned' and use unique colors
-    const palette = [
-      '#4f46e5', '#059669', '#dc2626', '#f59e42', '#eab308', '#14b8a6', '#6366f1', '#f43f5e', '#84cc16', '#0ea5e9', '#a21caf', '#d97706'
-    ]
-    const filtered = Object.values(aggByProject).filter(v => v.name !== 'Unassigned')
-    const labels = filtered.map(v => v.name)
-    const data = filtered.map(v => Number(v.hours.toFixed(2)))
-    return {
-      labels,
-      datasets: [{
-        data,
-        backgroundColor: labels.map((_, i) => palette[i % palette.length]),
-        borderWidth: 0
-      }]
-    }
-  }, [aggByProject])
-
-  
 
   // Daily working hours for last N days
   const days = useMemo(() => {
@@ -107,7 +64,7 @@ export default function ReportsPage() {
       }
     }
     return result
-  }, [entries, projMap, days])
+  }, [entries, days])
 
   const barLineData = useMemo(() => {
     const labels = days.map(d => d.toFormat('d. LLL'))
@@ -154,13 +111,6 @@ export default function ReportsPage() {
 
   return (
     <div className="reports-root">
-      <div className="card-grid">
-        <div className="card">
-          <div className="card-title">Duration by Project</div>
-          <Doughnut data={donutDurationData} options={{ plugins: { legend: { position: 'bottom' } } }} />
-        </div>
-      </div>
-
       <div className="card" style={{ marginTop: 16 }}>
         <div className="card-title">Working Hours</div>
         <div style={{ marginBottom: 8 }}>

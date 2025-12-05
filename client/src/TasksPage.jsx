@@ -55,10 +55,8 @@ function renderAssignee(value) {
 
 export default function TasksPage({ user }) {
   const [tasks, setTasks] = useState([])
-  const [projects, setProjects] = useState([])
   const [teams, setTeams] = useState([])
   const [title, setTitle] = useState('')
-  const [projectId, setProjectId] = useState('')
   const [teamId, setTeamId] = useState('')
   const [assigneeId, setAssigneeId] = useState('')
   const [saving, setSaving] = useState(false)
@@ -76,16 +74,14 @@ export default function TasksPage({ user }) {
 
   async function load() {
     try {
-      const [pr, tr, tm] = await Promise.all([
-        axios.get('/api/projects', { headers: authHeaders() }),
+      const [tr, tm] = await Promise.all([
         axios.get('/api/tasks', { headers: authHeaders() }),
         axios.get('/api/teams', { headers: authHeaders() })
       ])
-      setProjects(pr.data.projects || [])
       setTasks(tr.data.tasks || [])
       setTeams(tm.data.teams || [])
     } catch (e) {
-      setError('Failed to load tasks/projects')
+      setError('Failed to load tasks')
     }
   }
 
@@ -138,14 +134,12 @@ export default function TasksPage({ user }) {
         '/api/tasks',
         {
           title,
-          projectId: projectId || null,
           teamId: teamId || null,
           assignedTo: assignedPayload
         },
         { headers: authHeaders() }
       )
       setTitle('')
-      setProjectId('')
       setTeamId('')
       setAssigneeId('')
       await load()
@@ -154,14 +148,12 @@ export default function TasksPage({ user }) {
     } finally { setSaving(false) }
   }
 
-  const projMap = useMemo(() => Object.fromEntries(projects.map(p => [p.id, p.name])), [projects])
   const teamMap = useMemo(() => Object.fromEntries(teamsWithMembers.map(t => [t.id, t.name])), [teamsWithMembers])
 
   function startEdit(task) {
     setEditingId(task.id)
     setEditForm({
       title: task.title,
-      projectId: task.projectId || '',
       teamId: task.teamId || '',
       assigneeId: task.assignedTo?.memberId || ''
     })
@@ -193,7 +185,6 @@ export default function TasksPage({ user }) {
         `/api/tasks/${taskId}`,
         {
           title: editForm.title,
-          projectId: editForm.projectId || null,
           teamId: editForm.teamId || null,
           assignedTo: assignedPayload
         },
@@ -229,10 +220,6 @@ export default function TasksPage({ user }) {
       {isManager && (
       <form onSubmit={addTask} style={{ display:'flex', gap:8, marginBottom:12, flexWrap:'wrap' }}>
         <input placeholder="Task title" value={title} onChange={e=>setTitle(e.target.value)} required style={{ padding:8, border:'1px solid #ddd', borderRadius:6 }} />
-        <select value={projectId} onChange={e=>setProjectId(e.target.value)} style={{ padding:8, border:'1px solid #ddd', borderRadius:6 }}>
-          <option value="">No project</option>
-          {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-        </select>
         <select value={teamId} onChange={e=>setTeamId(e.target.value)} style={{ padding:8, border:'1px solid #ddd', borderRadius:6 }}>
           <option value="">No team</option>
           {teamsWithMembers.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
@@ -266,7 +253,6 @@ export default function TasksPage({ user }) {
           <thead>
             <tr style={{ background:'#fafafa' }}>
               <th style={{ textAlign:'left', padding:8, borderBottom:'1px solid #eee' }}>Title</th>
-              <th style={{ textAlign:'left', padding:8, borderBottom:'1px solid #eee' }}>Project</th>
               <th style={{ textAlign:'left', padding:8, borderBottom:'1px solid #eee' }}>Team</th>
               <th style={{ textAlign:'left', padding:8, borderBottom:'1px solid #eee' }}>Assigned</th>
               <th style={{ textAlign:'left', padding:8, borderBottom:'1px solid #eee' }}>Status</th>
@@ -284,16 +270,6 @@ export default function TasksPage({ user }) {
                         onChange={e=>setEditForm({...editForm, title: e.target.value})}
                         style={{ width:'100%', padding:4, border:'1px solid #ddd', borderRadius:4 }}
                       />
-                    </td>
-                    <td style={{ padding:8, borderBottom:'1px solid #f1f1f1' }}>
-                      <select 
-                        value={editForm.projectId} 
-                        onChange={e=>setEditForm({...editForm, projectId: e.target.value})}
-                        style={{ width:'100%', padding:4, border:'1px solid #ddd', borderRadius:4 }}
-                      >
-                        <option value="">No project</option>
-                        {projects.map(p => <option key={p.id} value={p.id}>{p.name}</option>)}
-                      </select>
                     </td>
                     <td style={{ padding:8, borderBottom:'1px solid #f1f1f1' }}>
                       <select 
@@ -333,7 +309,6 @@ export default function TasksPage({ user }) {
               return (
                 <tr key={t.id} style={{ background: selected===t.id ? '#f7f7ff' : 'transparent' }}>
                   <td style={{ padding:8, borderBottom:'1px solid #f1f1f1' }} onClick={()=>setSelected(t.id)}>{t.title}</td>
-                  <td style={{ padding:8, borderBottom:'1px solid #f1f1f1' }} onClick={()=>setSelected(t.id)}>{t.projectId ? (projMap[t.projectId] || t.projectId) : '—'}</td>
                   <td style={{ padding:8, borderBottom:'1px solid #f1f1f1' }} onClick={()=>setSelected(t.id)}>{t.teamId ? (teamMap[t.teamId] || t.teamId) : '—'}</td>
                   <td style={{ padding:8, borderBottom:'1px solid #f1f1f1' }} onClick={()=>setSelected(t.id)}>{renderAssignee(t.assignedTo)}</td>
                   <td style={{ padding:8, borderBottom:'1px solid #f1f1f1' }}>
@@ -357,7 +332,7 @@ export default function TasksPage({ user }) {
               )
             })}
             {!tasks.length && (
-              <tr><td colSpan={isManager ? 6 : 5} style={{ padding:12 }}>No tasks yet. Add one above.</td></tr>
+              <tr><td colSpan={isManager ? 5 : 4} style={{ padding:12 }}>No tasks yet. Add one above.</td></tr>
             )}
           </tbody>
         </table>

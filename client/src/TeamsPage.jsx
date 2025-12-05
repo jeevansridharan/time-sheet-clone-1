@@ -197,20 +197,6 @@ export default function TeamsPage({ user }) {
     }
   }
 
-  const projectsByTeam = useMemo(() => {
-    const map = new Map()
-    tasks.forEach(task => {
-      if (!task.teamId || !task.projectId) return
-      if (!map.has(task.teamId)) map.set(task.teamId, new Set())
-      map.get(task.teamId).add(task.projectId)
-    })
-    const counts = {}
-    map.forEach((set, teamId) => {
-      counts[teamId] = set.size
-    })
-    return counts
-  }, [tasks])
-
   async function handleDelete(team) {
     if (!window.confirm(`Delete team "${team.name}"?`)) return
     try {
@@ -395,7 +381,6 @@ export default function TeamsPage({ user }) {
               <th>Name</th>
               <th>Description</th>
               <th>Visibility</th>
-              <th>Projects</th>
               <th>Employees</th>
               {isManager && <th style={{ width: 120 }}>Actions</th>}
             </tr>
@@ -403,7 +388,6 @@ export default function TeamsPage({ user }) {
           <tbody>
             {teams.map(team => {
               const members = Array.isArray(team.members) ? team.members : []
-              const projectCount = projectsByTeam[team.id] || 0
               return (
                 <tr key={team.id}>
                   <td>
@@ -414,7 +398,6 @@ export default function TeamsPage({ user }) {
                   </td>
                   <td>{team.description || '—'}</td>
                   <td>{visibilityLabel(team.visibility)}</td>
-                  <td>{projectCount}</td>
                   <td title={members.map(m => (m && (m.name || m.email || '') )).filter(Boolean).join(', ')}>
                     {(() => {
                       const names = members.map(m => (m && (m.name || m.email || ''))).filter(Boolean)
